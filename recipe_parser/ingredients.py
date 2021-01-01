@@ -51,6 +51,8 @@ _units_amounts = [
     'pack', 'packs',
     'stalk', 'stalks',
     'block', 'blocks',
+    'drop', 'drops',
+    'dollop', 'dollops'
 ]
 
 
@@ -81,11 +83,18 @@ def to_number(value: AnyStr) -> Optional[float]:
 
 
 class Ingredient:
-    def __init__(self, name: AnyStr, amount: Optional[float] = None, unit: Optional[AnyStr] = None, notes: Optional[AnyStr] = None):
+    def __init__(self,
+                 name: AnyStr,
+                 amount: Optional[float] = None,
+                 unit: Optional[AnyStr] = None,
+                 notes: Optional[AnyStr] = None,
+                 optional: bool = False
+                 ):
         self.name = name
         self.amount = amount
         self.unit = unit
         self.notes = notes
+        self.optional = optional
 
     @staticmethod
     def _extract_note_from_name(text):
@@ -112,6 +121,8 @@ class Ingredient:
         else:
             name, note = extract_comma(text, i_comma)
 
+        if note is not None and len(note) == 0:
+            note = None
         return name, note
 
     @classmethod
@@ -119,6 +130,10 @@ class Ingredient:
         number_regex = r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+'
         units_regex = '|'.join(units)
         ingredient_regex = fr'(?P<amount>{number_regex})?\s*(?P<unit>{units_regex})?\.?\s+(?P<name>.+)'
+
+        deoptionalized_ingredient_line = re.sub(r'\s*[,(]?\s*optional\s*\)?', '', ingredient_line, flags=re.IGNORECASE)
+        optional = (ingredient_line != deoptionalized_ingredient_line)
+        ingredient_line = deoptionalized_ingredient_line
 
         res = re.match(fr'\s*{ingredient_regex}\s*', ingredient_line, flags=re.IGNORECASE)
         if res:
@@ -135,4 +150,4 @@ class Ingredient:
 
         name, note = cls._extract_note_from_name(name)
 
-        return Ingredient(name, amount, unit, note)
+        return Ingredient(name, amount, unit, note, optional)

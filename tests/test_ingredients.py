@@ -58,10 +58,6 @@ def test_converts_string_to_number(str_num, expected_num):
     ('salt', (None, None, 'salt')),
     ('black pepper', (None, None, 'black pepper')),
     ('salt and black pepper to taste', (None, None, 'salt and black pepper to taste')),
-    #
-    # # Optional
-    # ('2 optional dollops of sour cream', (2, 'dollops', 'of sour cream', {'optional': True})),
-    # ('2 drops red food coloring, optional', (2, 'drops', 'red food coloring', {'optional': True}))
 ])
 def test_parses_ingredient_line(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
@@ -83,3 +79,23 @@ def test_parses_ingredient_line_with_notes(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
     assert isinstance(actual, ingredients.Ingredient)
     assert expected_result + (False,) == (actual.amount, actual.unit, actual.name, actual.notes, actual.optional)
+
+
+@pytest.mark.parametrize("ingredient_line, expected_result", [
+    # Without notes
+    ('2 optional dollops of sour cream', (2, 'dollops', 'sour cream', None)),
+    ('2 drops red food coloring, optional', (2, 'drops', 'red food coloring', None)),
+    ('2 drops red food coloring (optional)', (2, 'drops', 'red food coloring', None)),
+
+    # With notes
+    ('200 mL milk, room temperature (optional)', (200, 'mL', 'milk', 'room temperature')),
+    ('200 mL milk, room temperature, optional', (200, 'mL', 'milk', 'room temperature')),
+    ('200 mL milk, room temperature optional', (200, 'mL', 'milk', 'room temperature')),
+    ('200 mL milk (room temperature) (optional)', (200, 'mL', 'milk', 'room temperature')),
+    ('200 mL milk (room temperature, optional)', (200, 'mL', 'milk', 'room temperature')),
+    ('200 mL milk (room temperature), optional', (200, 'mL', 'milk', 'room temperature')),
+])
+def test_parses_optional_ingredient_line(ingredient_line, expected_result):
+    actual = ingredients.Ingredient.parse_line(ingredient_line)
+    assert isinstance(actual, ingredients.Ingredient)
+    assert expected_result + (True,) == (actual.amount, actual.unit, actual.name, actual.notes, actual.optional)
