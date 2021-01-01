@@ -1,5 +1,60 @@
+import re
 import unicodedata
 from typing import AnyStr, Tuple, Optional
+
+
+_units_weights = [
+    'pound', 'pounds', 'lb', 'lbs',
+    'ounce', 'ounces', 'oz',
+    'gram', 'grams', 'g', 'grm', 'grms', 'gr',
+    'milligram', 'milligrams', 'mg',
+    'kilogram', 'kilograms', 'kg', 'kilo', 'kilos',
+]
+
+_units_volumes = [
+    'tablespoon', 'tablespoons', 'tbsp', 'T', 'tbs', 'tbsps', 'tb',
+    'teaspoon', 'teaspoons', 'tsp', 't', 'tsps',
+    'cup', 'cups', 'c',
+    'pint', 'pints', 'pt', 'p',
+    'quart', 'quarts', 'qt',
+    'gallon', 'gallons', 'gal',
+    'fluid ounce', 'fluid ounces', 'fl oz', 'fl. oz.', 'oz. fl.',
+    'liter', 'litre', 'liters', 'litres', 'l', 'L',
+    'milliliter', 'millilitre', 'milliliters', 'millilitres', 'ml', 'mL',
+    'centiliter', 'centilitre', 'centiliters', 'centilitres', 'cl', 'cL',
+    'deciliter', 'decilitre', 'deciliters', 'decilitres', 'dl', 'dL',
+]
+
+_units_length = [
+    'centimeter', 'centimetre', 'centimeters', 'centimetres', 'cm',
+    'inch', 'inches', 'in'
+]
+
+_units_amounts = [
+    'serving', 'servings',
+    'loaf', 'loaves',
+    'cookie', 'cookies',
+    'ball', 'balls',
+    'piece', 'pieces',
+    'slice', 'slices',
+    'pie', 'pies',
+    'stick', 'sticks',
+    'package', 'packages', 'pkg', 'pkgs',
+    'box', 'boxes',
+    'can', 'cans',
+    'head', 'heads',
+    'cloves', 'clove'
+    'medium', 'md', 'med',
+    'large', 'lg',
+    'small', 'sm',
+    'drop', 'drops',
+    'bunches', 'bunch',
+    'pack', 'packs',
+    'stalk', 'stalks',
+]
+
+
+units = _units_weights + _units_volumes + _units_length + _units_amounts
 
 
 def to_number(value: AnyStr) -> Optional[float]:
@@ -34,24 +89,19 @@ def to_number(value: AnyStr) -> Optional[float]:
     return amount
 
 
-def parse(ingredient_line: AnyStr) -> Tuple[float, str, str]:
-    ingredient_split = ingredient_line.split()
-    amount = None
-    unit = None
+Ingredient = Tuple[Optional[float], Optional[str], str]
 
-    numeric_value = to_number(ingredient_split[0])
-    if numeric_value is None:
-        ingredient = " ".join(ingredient_split)
+
+def parse(ingredient_line: AnyStr) -> Ingredient:
+    number_regex = r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+'
+    units_regex = '|'.join(units)
+    ingredient_regexes = fr'(?P<amount>{number_regex})?\s*(?P<unit>{units_regex})?\.?\s+(?P<name>.+)\s*'
+
+    res = re.match(fr'\s*{ingredient_regexes}', ingredient_line, flags=re.IGNORECASE)
+    if res:
+        amount = res.group('amount')
+        unit = res.group('unit')
+        name = res.group('name')
+        return to_number(amount), unit, name
     else:
-        amount = numeric_value
-        i_after = 1
-        numeric_value = to_number(ingredient_split[1])
-        if numeric_value is not None:
-            amount += numeric_value
-            i_after += 1
-
-        if len(ingredient_split[i_after:]) > 1:
-            unit = ingredient_split[i_after]
-            i_after += 1
-        ingredient = " ".join(ingredient_split[i_after:])
-    return (amount, unit, ingredient)
+        return (None, None, ingredient_line)
