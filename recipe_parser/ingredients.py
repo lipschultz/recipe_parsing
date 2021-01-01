@@ -1,7 +1,6 @@
 import re
 import unicodedata
-from typing import AnyStr, Tuple, Optional
-
+from typing import AnyStr, Optional
 
 _units_weights = [
     'pound', 'pounds', 'lb', 'lbs',
@@ -80,19 +79,24 @@ def to_number(value: AnyStr) -> Optional[float]:
             return accumulated_value
 
 
-Ingredient = Tuple[Optional[float], Optional[str], str]
+class Ingredient:
+    def __init__(self, name: AnyStr, amount: Optional[float] = None, unit: Optional[AnyStr] = None, notes: Optional[AnyStr] = None):
+        self.name = name
+        self.amount = amount
+        self.unit = unit
+        self.notes = notes
 
+    @classmethod
+    def parse_line(cls, ingredient_line: AnyStr) -> 'Ingredient':
+        number_regex = r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+'
+        units_regex = '|'.join(units)
+        ingredient_regex = fr'(?P<amount>{number_regex})?\s*(?P<unit>{units_regex})?\.?\s+(?P<name>.+)\s*'
 
-def parse(ingredient_line: AnyStr) -> Ingredient:
-    number_regex = r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+'
-    units_regex = '|'.join(units)
-    ingredient_regexes = fr'(?P<amount>{number_regex})?\s*(?P<unit>{units_regex})?\.?\s+(?P<name>.+)\s*'
-
-    res = re.match(fr'\s*{ingredient_regexes}', ingredient_line, flags=re.IGNORECASE)
-    if res:
-        amount = res.group('amount')
-        unit = res.group('unit')
-        name = res.group('name')
-        return to_number(amount), unit, name
-    else:
-        return (None, None, ingredient_line)
+        res = re.match(fr'\s*{ingredient_regex}', ingredient_line, flags=re.IGNORECASE)
+        if res:
+            amount = to_number(res.group('amount'))
+            unit = res.group('unit')
+            name = res.group('name')
+            return Ingredient(name, amount, unit)
+        else:
+            return Ingredient(ingredient_line, None, None)
