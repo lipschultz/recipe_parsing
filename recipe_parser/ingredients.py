@@ -118,9 +118,9 @@ class Ingredient:
     def parse_line(cls, ingredient_line: AnyStr) -> 'Ingredient':
         number_regex = r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+'
         units_regex = '|'.join(units)
-        ingredient_regex = fr'(?P<amount>{number_regex})?\s*(?P<unit>{units_regex})?\.?\s+(?P<name>.+)\s*'
+        ingredient_regex = fr'(?P<amount>{number_regex})?\s*(?P<unit>{units_regex})?\.?\s+(?P<name>.+)'
 
-        res = re.match(fr'\s*{ingredient_regex}', ingredient_line, flags=re.IGNORECASE)
+        res = re.match(fr'\s*{ingredient_regex}\s*', ingredient_line, flags=re.IGNORECASE)
         if res:
             amount = to_number(res.group('amount'))
             unit = res.group('unit')
