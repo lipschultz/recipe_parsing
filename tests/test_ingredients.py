@@ -34,6 +34,8 @@ def test_converts_string_to_number(str_num, expected_num):
     ('2 1/2 teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
     ('2 1/2 teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
     ('2½ teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
+    ('2½ teaspoons of chili powder', (2.5, 'teaspoons', 'chili powder')),
+    ('2½ teaspoons Of chili powder', (2.5, 'teaspoons', 'chili powder')),
 
     # Amount name
     ('2 onions', (2, None, 'onions')),

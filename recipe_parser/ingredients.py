@@ -130,7 +130,9 @@ class Ingredient:
             unit = None
             name = ingredient_line
 
-        # Extract note:
+        if name.lower().startswith('of'):
+            name = name[2:].lstrip()
+
         name, note = cls._extract_note_from_name(name)
 
         return Ingredient(name, amount, unit, note)
