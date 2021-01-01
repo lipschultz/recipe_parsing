@@ -1,6 +1,22 @@
 import pytest
 
-from recipe_parser.ingredients import parse
+from recipe_parser import ingredients
+
+@pytest.mark.parametrize("str_num, expected_num", [
+    ('2', 2),
+    ('2.3', 2.3),
+    ('0.5', 0.5),
+    ('.5', 0.5),
+    ('1/2', 0.5),
+    ('2 1/2', 2.5),
+    ('2 1/2', 2.5),
+    ('½', 0.5),
+    ('2 ½', 2.5),
+    ('2½', 2.5),
+    ('2 ½', 2.5),
+])
+def test_converts_string_to_number(str_num, expected_num):
+    assert ingredients.to_number(str_num) == expected_num
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [

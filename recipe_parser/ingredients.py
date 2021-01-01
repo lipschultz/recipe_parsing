@@ -58,35 +58,26 @@ units = _units_weights + _units_volumes + _units_length + _units_amounts
 
 
 def to_number(value: AnyStr) -> Optional[float]:
-    try:
+    value = value.strip()
+    if len(value) == 1:
+        return unicodedata.numeric(value)
+    elif len(value.split()) > 1:
+        return sum(to_number(v) for v in value.split())
+    elif '/' in value:
+        numer, denom = value.split('/', 1)
+        return float(numer) / float(denom)
+    else:
         try:
-            decomposition = unicodedata.decomposition(value)
-            if 'fraction' in decomposition:
-                frac_split = decomposition.split()
-                amount = round(float(frac_split[1].replace('003', '')) / float(frac_split[3].replace('003', '')), 3)
-            else:
-                amount = float(value.replace(',', '.'))
-        except TypeError:
-            if '/' in value:
-                numerator, denominator = value.split('/', 1)
-                amount = round(float(numerator) / float(denominator), 3)
-            else:
-                try:
-                    amount = float(value.replace(',', '.'))
-                except ValueError:
-                    amount = 0
-                    for v in value:
-                        converted_value = to_number(v)
-                        if converted_value is None:
-                            amount = None
-                            break
-                        elif converted_value < 1:
-                            amount += converted_value
-                        else:
-                            amount = amount * 10 + converted_value
-    except ValueError:
-        amount = None
-    return amount
+            return float(value.replace(',', ''))
+        except ValueError:
+            accumulated_value = 0
+            for char in value:
+                converted_char = to_number(char)
+                if converted_char < 1:
+                    accumulated_value += converted_char
+                else:
+                    accumulated_value = accumulated_value * 10 + converted_char
+            return accumulated_value
 
 
 Ingredient = Tuple[Optional[float], Optional[str], str]
