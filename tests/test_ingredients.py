@@ -5,6 +5,9 @@ from recipe_parser import ingredients
 
 @pytest.mark.parametrize("str_num, expected_num", [
     ('2', 2),
+    ('20', 20),
+    ('205', 205),
+    ('205.13', 205.13),
     ('2.3', 2.3),
     ('0.5', 0.5),
     ('.5', 0.5),
