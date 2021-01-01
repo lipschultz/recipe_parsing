@@ -50,6 +50,7 @@ _units_amounts = [
     'bunches', 'bunch',
     'pack', 'packs',
     'stalk', 'stalks',
+    'block', 'blocks',
 ]
 
 
@@ -86,6 +87,33 @@ class Ingredient:
         self.unit = unit
         self.notes = notes
 
+    @staticmethod
+    def _extract_note_from_name(text):
+        i_comma = text.find(',')
+        i_paren = text.find('(')
+
+        def extract_comma(text, i):
+            return text[:i].strip(), text[i + 1:].strip()
+
+        def extract_paren(text, i):
+            name = text[:i].strip()
+            note = text[i + 1:].rstrip(')').strip()
+            return name, note
+
+        if i_comma == -1:
+            if i_paren == -1:
+                name, note = text, None
+            else:
+                name, note = extract_paren(text, i_paren)
+        elif i_paren == -1:
+            name, note = extract_comma(text, i_comma)
+        elif i_paren < i_comma:
+            name, note = extract_paren(text, i_paren)
+        else:
+            name, note = extract_comma(text, i_comma)
+
+        return name, note
+
     @classmethod
     def parse_line(cls, ingredient_line: AnyStr) -> 'Ingredient':
         number_regex = r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+'
@@ -97,6 +125,12 @@ class Ingredient:
             amount = to_number(res.group('amount'))
             unit = res.group('unit')
             name = res.group('name')
-            return Ingredient(name, amount, unit)
         else:
-            return Ingredient(ingredient_line, None, None)
+            amount = None
+            unit = None
+            name = ingredient_line
+
+        # Extract note:
+        name, note = cls._extract_note_from_name(name)
+
+        return Ingredient(name, amount, unit, note)

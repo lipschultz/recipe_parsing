@@ -57,6 +57,16 @@ def test_converts_string_to_number(str_num, expected_num):
     ('black pepper', (None, None, 'black pepper', None)),
     ('salt and black pepper to taste', (None, None, 'salt and black pepper to taste', None)),
 
+    # Notes
+    ('200 mL milk, room temperature', (200, 'mL', 'milk', 'room temperature')),
+    ('200 mL milk (room temperature)', (200, 'mL', 'milk', 'room temperature')),
+    ('200 mL whole milk, room temperature', (200, 'mL', 'whole milk', 'room temperature')),
+    ('200 mL whole milk (room temperature)', (200, 'mL', 'whole milk', 'room temperature')),
+    ('2 onions, diced', (2, None, 'onions', 'diced')),
+    ('2 onions (diced)', (2, None, 'onions', 'diced')),
+    ('2 blocks tofu, drained, diced, and frozen', (2, 'blocks', 'tofu', 'drained, diced, and frozen')),
+    ('2 blocks tofu (drained, diced, and frozen)', (2, 'blocks', 'tofu', 'drained, diced, and frozen')),
+
 ])
 def test_parses_ingredient_line(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
