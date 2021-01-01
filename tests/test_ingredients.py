@@ -30,6 +30,18 @@ def test_converts_string_to_number(str_num, expected_num):
     assert ingredients.to_number(str_num) == expected_num
 
 
+def assert_ingredients_equal(expected, actual):
+    assert isinstance(actual, ingredients.Ingredient)
+    assert isinstance(actual.quantity, ingredients.Quantity)
+    assert isinstance(actual.to_quantity, ingredients.Quantity)
+
+    assert expected.quantity == actual.quantity
+    assert expected.name == actual.name
+    assert expected.notes == actual.notes
+    assert expected.optional == actual.optional
+    assert expected.to_quantity == actual.to_quantity
+
+
 @pytest.mark.parametrize("ingredient_line, expected_result", [
     # Amount unit name
     ('2 tbsp chili powder', (2, 'tbsp', 'chili powder')),
@@ -68,8 +80,8 @@ def test_converts_string_to_number(str_num, expected_num):
 ])
 def test_parses_ingredient_line(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
-    assert isinstance(actual, ingredients.Ingredient)
-    assert expected_result + (None, False) == (actual.amount, actual.unit, actual.name, actual.notes, actual.optional)
+    expected = ingredients.Ingredient(expected_result[2], ingredients.Quantity(expected_result[0], expected_result[1]))
+    assert_ingredients_equal(expected, actual)
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [
@@ -84,8 +96,9 @@ def test_parses_ingredient_line(ingredient_line, expected_result):
 ])
 def test_parses_ingredient_line_with_notes(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
-    assert isinstance(actual, ingredients.Ingredient)
-    assert expected_result + (False,) == (actual.amount, actual.unit, actual.name, actual.notes, actual.optional)
+    expected = ingredients.Ingredient(expected_result[2], ingredients.Quantity(expected_result[0], expected_result[1]),
+                                      notes=expected_result[3])
+    assert_ingredients_equal(expected, actual)
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [
@@ -104,5 +117,44 @@ def test_parses_ingredient_line_with_notes(ingredient_line, expected_result):
 ])
 def test_parses_optional_ingredient_line(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
-    assert isinstance(actual, ingredients.Ingredient)
-    assert expected_result + (True,) == (actual.amount, actual.unit, actual.name, actual.notes, actual.optional)
+    expected = ingredients.Ingredient(expected_result[2], ingredients.Quantity(expected_result[0], expected_result[1]),
+                                      notes=expected_result[3], optional=True)
+    assert_ingredients_equal(expected, actual)
+
+
+@pytest.mark.parametrize("ingredient_line, expected_result", [
+    # number dash number
+    ('2-3 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
+    ('½-¾ teaspoons chili powder', (0.5, 'teaspoons', 0.75, 'teaspoons', 'chili powder')),
+    ('1/2-3/4 teaspoons chili powder', (0.5, 'teaspoons', 0.75, 'teaspoons', 'chili powder')),
+    ('2-3 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
+    ('½-¾ teaspoons chili powder', (0.5, 'teaspoons', 0.75, 'teaspoons', 'chili powder')),
+    ('1/2-3/4 teaspoons chili powder', (0.5, 'teaspoons', 0.75, 'teaspoons', 'chili powder')),
+    ('2½-2¾ teaspoons chili powder', (2.5, 'teaspoons', 2.75, 'teaspoons', 'chili powder')),
+    ('2 ½-2 ¾ teaspoons chili powder', (2.5, 'teaspoons', 2.75, 'teaspoons', 'chili powder')),
+    ('2 1/2-2 3/4 teaspoons chili powder', (2.5, 'teaspoons', 2.75, 'teaspoons', 'chili powder')),
+
+    # number dash number with spaces
+    ('2 - 3 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
+    ('½ - ¾ teaspoons chili powder', (0.5, 'teaspoons', 0.75, 'teaspoons', 'chili powder')),
+    ('1/2 - 3/4 teaspoons chili powder', (0.5, 'teaspoons', 0.75, 'teaspoons', 'chili powder')),
+    ('2 - 3 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
+    ('½ - ¾ teaspoons chili powder', (0.5, 'teaspoons', 0.75, 'teaspoons', 'chili powder')),
+    ('1/2 - 3/4 teaspoons chili powder', (0.5, 'teaspoons', 0.75, 'teaspoons', 'chili powder')),
+    ('2½ - 2¾ teaspoons chili powder', (2.5, 'teaspoons', 2.75, 'teaspoons', 'chili powder')),
+    ('2 ½ - 2 ¾ teaspoons chili powder', (2.5, 'teaspoons', 2.75, 'teaspoons', 'chili powder')),
+    ('2 1/2 - 2 3/4 teaspoons chili powder', (2.5, 'teaspoons', 2.75, 'teaspoons', 'chili powder')),
+
+    # number other-dashes number
+    ('2~3 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
+    ('2\u20123 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
+    ('2\u20133 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
+    ('2\u20143 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
+    ('2\u20153 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
+    ('2\u20533 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
+])
+def test_parses_amount_range(ingredient_line, expected_result):
+    actual = ingredients.Ingredient.parse_line(ingredient_line)
+    expected = ingredients.Ingredient(expected_result[4], ingredients.Quantity(expected_result[0], expected_result[1]),
+                                      to_quantity=ingredients.Quantity(expected_result[2], expected_result[3]))
+    assert_ingredients_equal(expected, actual)
