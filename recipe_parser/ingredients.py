@@ -1,6 +1,8 @@
 import re
 import unicodedata
-from typing import AnyStr, Optional
+from typing import AnyStr, Optional, Union
+
+Number = Union[int, float]
 
 _units_weights = [
     'pound', 'pounds', 'lb', 'lbs',
@@ -59,7 +61,12 @@ _units_amounts = [
 units = _units_weights + _units_volumes + _units_length + _units_amounts
 
 
-def to_number(value: AnyStr) -> Optional[float]:
+def to_number(value: str) -> Optional[Number]:
+    if isinstance(value, (int, float)):
+        return value
+    elif not isinstance(value, str):
+        return None
+
     value = value.strip()
     if len(value) == 0:
         return None

@@ -23,6 +23,8 @@ from recipe_parser import ingredients
     ('has1number', None),
     ('12number', None),
     ('number13', None),
+    (10, 10),
+    (13.8, 13.8),
 ])
 def test_converts_string_to_number(str_num, expected_num):
     assert ingredients.to_number(str_num) == expected_num
