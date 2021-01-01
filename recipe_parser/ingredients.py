@@ -61,10 +61,22 @@ units = _units_weights + _units_volumes + _units_length + _units_amounts
 
 def to_number(value: AnyStr) -> Optional[float]:
     value = value.strip()
-    if len(value) == 1:
-        return unicodedata.numeric(value)
+    if len(value) == 0:
+        return None
+    elif len(value) == 1:
+        try:
+            return unicodedata.numeric(value)
+        except ValueError:
+            return None
     elif len(value.split()) > 1:
-        return sum(to_number(v) for v in value.split())
+        accumulated_value = 0
+        for v in value.split():
+            converted_number = to_number(v)
+            if converted_number is None:
+                return None
+            else:
+                accumulated_value += converted_number
+        return accumulated_value
     elif '/' in value:
         numer, denom = value.split('/', 1)
         return float(numer) / float(denom)
@@ -75,7 +87,9 @@ def to_number(value: AnyStr) -> Optional[float]:
             accumulated_value = 0
             for char in value:
                 converted_char = to_number(char)
-                if converted_char < 1:
+                if converted_char is None:
+                    return None
+                elif converted_char < 1:
                     accumulated_value += converted_char
                 else:
                     accumulated_value = accumulated_value * 10 + converted_char

@@ -18,6 +18,11 @@ from recipe_parser import ingredients
     ('2 ½', 2.5),
     ('2½', 2.5),
     ('2 ½', 2.5),
+    ('not number', None),
+    ('', None),
+    ('has1number', None),
+    ('12number', None),
+    ('number13', None),
 ])
 def test_converts_string_to_number(str_num, expected_num):
     assert ingredients.to_number(str_num) == expected_num
