@@ -104,7 +104,7 @@ def to_number(value: str) -> Optional[Number]:
 
 
 class Quantity:
-    def __init__(self, amount: Number, unit: AnyStr):
+    def __init__(self, amount: Optional[Number], unit: Optional[AnyStr]):
         self.amount = amount
         self.unit = unit
 
@@ -138,20 +138,26 @@ class Ingredient:
                  notes: Optional[AnyStr] = None,
                  optional: bool = False,
                  to_quantity: Quantity = NO_QUANTITY,
+                 equivalent_quantity: Quantity = NO_QUANTITY,
                  ):
         self.name = name
         self.quantity = quantity
         self.notes = notes
         self.optional = optional
         self.to_quantity = to_quantity
+        self.equivalent_quantity = equivalent_quantity
 
-    def equals(self, other, compare_notes=True, compare_optional=True):
+    def equals(self, other, compare_notes=True, compare_optional=True, compare_equivalent_quantity=False):
         return isinstance(other, self.__class__) and \
                self.name == other.name and \
                self.quantity == other.quantity and \
                (not compare_notes or self.notes == other.notes) and \
                (not compare_optional or self.optional == other.optional) and \
-               self.to_quantity == other.to_quantity
+               self.to_quantity == other.to_quantity and \
+               (not compare_equivalent_quantity or self.equivalent_quantity == other.equivalent_quantity)
+
+    def __eq__(self, other):
+        return self.equals(other, True, True, True)
 
     def __str__(self):
         ingredient = []
@@ -159,6 +165,9 @@ class Ingredient:
             ingredient.append(str(self.quantity))
             if self.to_quantity:
                 ingredient.extend(['-', str(self.to_quantity)])
+
+        if self.equivalent_quantity:
+            ingredient.append(f'({self.equivalent_quantity}')
 
         ingredient.append(self.name)
 
@@ -171,7 +180,9 @@ class Ingredient:
         return ' '.join(ingredient)
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(name={self.name!r}, quantity={self.quantity!r}, notes={self.notes!r}, optional={self.optional!r}, to_quantity={self.to_quantity!r})'
+        attribs = ['name', 'quantity', 'notes', 'optional', 'to_quantity', 'equivalent_quantity']
+        attrib_list = ', '.join(f'{attrib}={getattr(self, attrib)!r}' for attrib in attribs)
+        return f'{self.__class__.__name__}({attrib_list})'
 
     @staticmethod
     def _extract_note_from_name(text):
@@ -207,7 +218,11 @@ class Ingredient:
         number_regex = r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+'
         dash_regex = r'(?:[-\u2012-\u2015\u2053~]|to)'
         units_regex = '|'.join(units)
-        ingredient_regex = fr'(?P<amount>{number_regex})?\s*(?P<unit1>{units_regex})?\.?(?:\s*{dash_regex}\s*(?P<to_amount>{number_regex}))?\s*(?P<unit2>{units_regex})?\.?\s+(?P<name>.+)'
+        quantity_regex_fmt = r'(?P<amount{label}>{amount_regex})?\s*(?P<unit{label}>{unit_regex})?\.?'
+        ingredient_regex = quantity_regex_fmt.format(label='1', amount_regex=number_regex, unit_regex=units_regex) + \
+                           fr'(?:\s*{dash_regex}\s*)?' + quantity_regex_fmt.format(label='2', amount_regex=number_regex, unit_regex=units_regex) + \
+                           r'\s*(?:\(~?' + quantity_regex_fmt.format(label='_equiv1', amount_regex=number_regex, unit_regex=units_regex) + r'\))?' + \
+                           r'\s+(?P<name>.+)'
 
         deoptionalized_ingredient_line = re.sub(r'\s*[,(]?\s*optional\s*\)?', '', ingredient_line, flags=re.IGNORECASE)
         optional = (ingredient_line != deoptionalized_ingredient_line)
@@ -215,24 +230,27 @@ class Ingredient:
 
         res = re.match(fr'\s*{ingredient_regex}\s*', ingredient_line, flags=re.IGNORECASE)
         if res:
-            amount = to_number(res.group('amount'))
+            amount = to_number(res.group('amount1'))
             amount_unit = res.group('unit1')
 
-            to_amount = to_number(res.group('to_amount'))
+            to_amount = to_number(res.group('amount2'))
             to_amount_unit = res.group('unit2')
 
             quantity = Quantity(amount, amount_unit or to_amount_unit)
             to_quantity = Quantity(to_amount, to_amount_unit)
+
+            equivalent_quantity = Quantity(to_number(res.group('amount_equiv1')), res.group('unit_equiv1'))
 
             name = res.group('name')
         else:
             quantity = NO_QUANTITY
             to_quantity = NO_QUANTITY
             name = ingredient_line
+            equivalent_quantity = NO_QUANTITY
 
         if name.lower().startswith('of'):
             name = name[2:].lstrip()
 
         name, note = cls._extract_note_from_name(name)
 
-        return Ingredient(name, quantity, note, optional, to_quantity=to_quantity)
+        return Ingredient(name, quantity, note, optional, to_quantity=to_quantity, equivalent_quantity=equivalent_quantity)

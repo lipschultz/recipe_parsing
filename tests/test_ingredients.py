@@ -40,6 +40,7 @@ def assert_ingredients_equal(expected, actual):
     assert expected.notes == actual.notes
     assert expected.optional == actual.optional
     assert expected.to_quantity == actual.to_quantity
+    assert expected.equivalent_quantity == actual.equivalent_quantity
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [
@@ -172,4 +173,22 @@ def test_parses_amount_range(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
     expected = ingredients.Ingredient(expected_result[4], ingredients.Quantity(expected_result[0], expected_result[1]),
                                       to_quantity=ingredients.Quantity(expected_result[2], expected_result[3]))
+    assert_ingredients_equal(expected, actual)
+
+
+@pytest.mark.parametrize("ingredient_line, expected_result", [
+    ('1 cup (240 mL) canola or other vegetable oil', (1, 'cup', 'canola or other vegetable oil', 240, 'mL')),
+    ('1 1/4 cup (295 mL) canola or other vegetable oil', (1.25, 'cup', 'canola or other vegetable oil', 295, 'mL')),
+    ('1 ¼ cup (295 mL) canola or other vegetable oil', (1.25, 'cup', 'canola or other vegetable oil', 295, 'mL')),
+    ('1¼ cup (295 mL) canola or other vegetable oil', (1.25, 'cup', 'canola or other vegetable oil', 295, 'mL')),
+
+    ('240 mL (1 cup) canola or other vegetable oil', (240, 'mL', 'canola or other vegetable oil', 1, 'cup')),
+    ('295 mL (1 1/4 cup) canola or other vegetable oil', (295, 'mL', 'canola or other vegetable oil', 1.25, 'cup')),
+    ('295 mL (1 ¼ cup) canola or other vegetable oil', (295, 'mL', 'canola or other vegetable oil', 1.25, 'cup')),
+    ('295 mL (1¼ cup) canola or other vegetable oil', (295, 'mL', 'canola or other vegetable oil', 1.25, 'cup')),
+])
+def test_parses_ingredient_line_with_equivalent_quantity(ingredient_line, expected_result):
+    actual = ingredients.Ingredient.parse_line(ingredient_line)
+    expected = ingredients.Ingredient(expected_result[2], ingredients.Quantity(expected_result[0], expected_result[1]),
+                                      equivalent_quantity=ingredients.Quantity(expected_result[3], expected_result[4]))
     assert_ingredients_equal(expected, actual)
