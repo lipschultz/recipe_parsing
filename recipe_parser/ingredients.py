@@ -207,7 +207,7 @@ class Ingredient:
         number_regex = r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+'
         dash_regex = r'(?:[-\u2012-\u2015\u2053~]|to)'
         units_regex = '|'.join(units)
-        ingredient_regex = fr'(?P<amount>{number_regex})?(?:\s*{dash_regex}\s*(?P<to_amount>{number_regex}))?\s*(?P<unit>{units_regex})?\.?\s+(?P<name>.+)'
+        ingredient_regex = fr'(?P<amount>{number_regex})?\s*(?P<unit1>{units_regex})?\.?(?:\s*{dash_regex}\s*(?P<to_amount>{number_regex}))?\s*(?P<unit2>{units_regex})?\.?\s+(?P<name>.+)'
 
         deoptionalized_ingredient_line = re.sub(r'\s*[,(]?\s*optional\s*\)?', '', ingredient_line, flags=re.IGNORECASE)
         optional = (ingredient_line != deoptionalized_ingredient_line)
@@ -216,11 +216,15 @@ class Ingredient:
         res = re.match(fr'\s*{ingredient_regex}\s*', ingredient_line, flags=re.IGNORECASE)
         if res:
             amount = to_number(res.group('amount'))
+            amount_unit = res.group('unit1')
+
             to_amount = to_number(res.group('to_amount'))
-            unit = res.group('unit')
+            to_amount_unit = res.group('unit2')
+
+            quantity = Quantity(amount, amount_unit or to_amount_unit)
+            to_quantity = Quantity(to_amount, to_amount_unit)
+
             name = res.group('name')
-            quantity = Quantity(amount, unit)
-            to_quantity = Quantity(to_amount, unit)
         else:
             quantity = NO_QUANTITY
             to_quantity = NO_QUANTITY

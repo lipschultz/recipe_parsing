@@ -45,14 +45,22 @@ def assert_ingredients_equal(expected, actual):
 @pytest.mark.parametrize("ingredient_line, expected_result", [
     # Amount unit name
     ('2 tbsp chili powder', (2, 'tbsp', 'chili powder')),
+    ('2tbsp chili powder', (2, 'tbsp', 'chili powder')),
     ('200 grams flour', (200, 'grams', 'flour')),
     ('½ teaspoons chili powder', (0.5, 'teaspoons', 'chili powder')),
+    ('½teaspoons chili powder', (0.5, 'teaspoons', 'chili powder')),
     ('1/2 teaspoons chili powder', (0.5, 'teaspoons', 'chili powder')),
+    ('1/2teaspoons chili powder', (0.5, 'teaspoons', 'chili powder')),
     ('2 ½ teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
+    ('2 ½teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
     ('2 ½ teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
+    ('2 ½teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
     ('2 1/2 teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
+    ('2 1/2teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
     ('2 1/2 teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
+    ('2 1/2teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
     ('2½ teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
+    ('2½teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
     ('2½ teaspoons of chili powder', (2.5, 'teaspoons', 'chili powder')),
     ('2½ teaspoons Of chili powder', (2.5, 'teaspoons', 'chili powder')),
 
@@ -125,6 +133,7 @@ def test_parses_optional_ingredient_line(ingredient_line, expected_result):
 @pytest.mark.parametrize("ingredient_line, expected_result", [
     # number dash number
     ('2-3 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
+    ('2-3tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
     ('½-¾ teaspoons chili powder', (0.5, 'teaspoons', 0.75, 'teaspoons', 'chili powder')),
     ('1/2-3/4 teaspoons chili powder', (0.5, 'teaspoons', 0.75, 'teaspoons', 'chili powder')),
     ('2-3 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
@@ -152,6 +161,12 @@ def test_parses_optional_ingredient_line(ingredient_line, expected_result):
     ('2\u20143 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
     ('2\u20153 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
     ('2\u20533 tbsp chili powder', (2, 'tbsp', 3, 'tbsp', 'chili powder')),
+
+    # number unit dash number unit
+    ('2 tsp-3 tbsp chili powder', (2, 'tsp', 3, 'tbsp', 'chili powder')),
+    ('2tsp-3 tbsp chili powder', (2, 'tsp', 3, 'tbsp', 'chili powder')),
+    ('2tsp-3tbsp chili powder', (2, 'tsp', 3, 'tbsp', 'chili powder')),
+    ('2 tsp-3tbsp chili powder', (2, 'tsp', 3, 'tbsp', 'chili powder')),
 ])
 def test_parses_amount_range(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
