@@ -30,17 +30,25 @@ def test_converts_string_to_number(str_num, expected_num):
     assert ingredients.to_number(str_num) == expected_num
 
 
+def assert_quantities_equal(expected, actual):
+    assert isinstance(actual, ingredients.Quantity)
+
+    assert expected.amount == actual.amount
+    assert expected.unit == actual.unit
+    if expected.amount is not None:
+        assert expected.approximate == actual.approximate
+
+
 def assert_ingredients_equal(expected, actual):
     assert isinstance(actual, ingredients.Ingredient)
-    assert isinstance(actual.quantity, ingredients.Quantity)
-    assert isinstance(actual.to_quantity, ingredients.Quantity)
 
+    assert_quantities_equal(expected.quantity, actual.quantity)
     assert expected.quantity == actual.quantity
     assert expected.name == actual.name
     assert expected.notes == actual.notes
     assert expected.optional == actual.optional
-    assert expected.to_quantity == actual.to_quantity
-    assert expected.equivalent_quantity == actual.equivalent_quantity
+    assert_quantities_equal(expected.to_quantity, actual.to_quantity)
+    assert_quantities_equal(expected.equivalent_quantity, actual.equivalent_quantity)
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [
@@ -191,4 +199,38 @@ def test_parses_ingredient_line_with_equivalent_quantity(ingredient_line, expect
     actual = ingredients.Ingredient.parse_line(ingredient_line)
     expected = ingredients.Ingredient(expected_result[2], ingredients.Quantity(expected_result[0], expected_result[1]),
                                       equivalent_quantity=ingredients.Quantity(expected_result[3], expected_result[4]))
+    assert_ingredients_equal(expected, actual)
+
+
+@pytest.mark.parametrize("ingredient_line, expected_result", [
+    ('1 cup (~240 mL) canola or other vegetable oil', (1, 'cup', None, None, 'canola or other vegetable oil', -240, 'mL')),
+    ('~1 cup (240 mL) canola or other vegetable oil', (-1, 'cup', None, None, 'canola or other vegetable oil', 240, 'mL')),
+    ('~1 cup (~240 mL) canola or other vegetable oil', (-1, 'cup', None, None, 'canola or other vegetable oil', -240, 'mL')),
+
+    # Other ways of indicating approximately
+    ('about 1 cup canola or other vegetable oil', (-1, 'cup', None, None, 'canola or other vegetable oil', None, None)),
+    ('approx 1 cup canola or other vegetable oil', (-1, 'cup', None, None, 'canola or other vegetable oil', None, None)),
+    ('approx. 1 cup canola or other vegetable oil', (-1, 'cup', None, None, 'canola or other vegetable oil', None, None)),
+    ('approximately 1 cup canola or other vegetable oil', (-1, 'cup', None, None, 'canola or other vegetable oil', None, None)),
+
+    # Range
+    ('~2~3 tbsp chili powder', (-2, 'tbsp', 3, 'tbsp', 'chili powder', None, None)),
+    ('~2~ about 3 tbsp chili powder', (-2, 'tbsp', -3, 'tbsp', 'chili powder', None, None)),
+])
+def test_parses_ingredient_line_with_approximate_quantity(ingredient_line, expected_result):
+    actual = ingredients.Ingredient.parse_line(ingredient_line)
+    expected = ingredients.Ingredient(
+        expected_result[4],
+        ingredients.Quantity(abs(expected_result[0]), expected_result[1], approximate=expected_result[0] < 0),
+        to_quantity=ingredients.Quantity(
+            abs(expected_result[2]) if expected_result[2] is not None else None,
+            expected_result[3],
+            approximate=expected_result[2] is None or expected_result[2] < 0
+        ),
+        equivalent_quantity=ingredients.Quantity(
+            abs(expected_result[5]) if expected_result[5] is not None else None,
+            expected_result[6],
+            approximate=expected_result[5] is None or expected_result[5] < 0
+        ),
+    )
     assert_ingredients_equal(expected, actual)

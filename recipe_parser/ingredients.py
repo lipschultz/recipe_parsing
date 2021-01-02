@@ -104,9 +104,10 @@ def to_number(value: str) -> Optional[Number]:
 
 
 class Quantity:
-    def __init__(self, amount: Optional[Number], unit: Optional[AnyStr]):
+    def __init__(self, amount: Optional[Number], unit: Optional[AnyStr], approximate: bool = False):
         self.amount = amount
         self.unit = unit
+        self.approximate = approximate
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -122,10 +123,10 @@ class Quantity:
         return bool(self.amount or self.unit)
 
     def __str__(self):
-        return f'{self.amount} {self.unit}'
+        return f'{"~" if self.approximate else ""}{self.amount} {self.unit}'
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.amount!r}, {self.unit!r})'
+        return f'{self.__class__.__name__}({self.amount!r}, {self.unit!r}, approximate={self.approximate!r})'
 
 
 NO_QUANTITY = Quantity(None, None)
@@ -217,11 +218,12 @@ class Ingredient:
     def parse_line(cls, ingredient_line: AnyStr) -> 'Ingredient':
         number_regex = r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+'
         dash_regex = r'(?:[-\u2012-\u2015\u2053~]|to)'
+        approx_regex = r'(?:~|about|approx(?:\.|imately)?)'
         units_regex = '|'.join(units)
-        quantity_regex_fmt = r'(?P<amount{label}>{amount_regex})?\s*(?P<unit{label}>{unit_regex})?\.?'
-        ingredient_regex = quantity_regex_fmt.format(label='1', amount_regex=number_regex, unit_regex=units_regex) + \
-                           fr'(?:\s*{dash_regex}\s*)?' + quantity_regex_fmt.format(label='2', amount_regex=number_regex, unit_regex=units_regex) + \
-                           r'\s*(?:\(~?' + quantity_regex_fmt.format(label='_equiv1', amount_regex=number_regex, unit_regex=units_regex) + r'\))?' + \
+        quantity_regex_fmt = r'(?P<approx{label}>{approx_regex})?\s*(?P<amount{label}>{amount_regex})?\s*(?P<unit{label}>{unit_regex})?\.?'
+        ingredient_regex = quantity_regex_fmt.format(label='1', approx_regex=approx_regex, amount_regex=number_regex, unit_regex=units_regex) + \
+                           fr'(?:\s*{dash_regex}\s*)?' + quantity_regex_fmt.format(label='2', approx_regex=approx_regex, amount_regex=number_regex, unit_regex=units_regex) + \
+                           r'\s*(?:\(' + quantity_regex_fmt.format(label='_equiv1', approx_regex=approx_regex, amount_regex=number_regex, unit_regex=units_regex) + r'\))?' + \
                            r'\s+(?P<name>.+)'
 
         deoptionalized_ingredient_line = re.sub(r'\s*[,(]?\s*optional\s*\)?', '', ingredient_line, flags=re.IGNORECASE)
@@ -230,16 +232,18 @@ class Ingredient:
 
         res = re.match(fr'\s*{ingredient_regex}\s*', ingredient_line, flags=re.IGNORECASE)
         if res:
+            approx_amount = res.group('approx1')
             amount = to_number(res.group('amount1'))
             amount_unit = res.group('unit1')
 
+            approx_to_amount = res.group('approx2')
             to_amount = to_number(res.group('amount2'))
             to_amount_unit = res.group('unit2')
 
-            quantity = Quantity(amount, amount_unit or to_amount_unit)
-            to_quantity = Quantity(to_amount, to_amount_unit)
+            quantity = Quantity(amount, amount_unit or to_amount_unit, approximate=bool(approx_amount))
+            to_quantity = Quantity(to_amount, to_amount_unit, approximate=bool(approx_to_amount))
 
-            equivalent_quantity = Quantity(to_number(res.group('amount_equiv1')), res.group('unit_equiv1'))
+            equivalent_quantity = Quantity(to_number(res.group('amount_equiv1')), res.group('unit_equiv1'), approximate=bool(res.group('approx_equiv1')))
 
             name = res.group('name')
         else:
