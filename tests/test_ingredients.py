@@ -30,25 +30,32 @@ def test_converts_string_to_number(str_num, expected_num):
     assert ingredients.to_number(str_num) == expected_num
 
 
-def assert_quantities_equal(expected, actual):
+def assert_quantity_equal(expected, actual, test_approximate=True):
     assert isinstance(actual, ingredients.Quantity)
 
     assert expected.amount == actual.amount
     assert expected.unit == actual.unit
-    if expected.amount is not None:
+    if test_approximate and expected.amount is not None:
         assert expected.approximate == actual.approximate
 
 
-def assert_ingredients_equal(expected, actual):
+def assert_total_quantity_equal(expected, actual):
+    assert isinstance(actual, ingredients.TotalQuantity)
+    assert len(expected) == len(actual)
+
+    for i, expected_quantity in enumerate(expected):
+        assert_quantity_equal(expected_quantity, actual[i])
+
+
+def assert_ingredient_equal(expected, actual):
     assert isinstance(actual, ingredients.Ingredient)
 
-    assert_quantities_equal(expected.quantity, actual.quantity)
-    assert expected.quantity == actual.quantity
+    assert_total_quantity_equal(expected.quantity, actual.quantity)
     assert expected.name == actual.name
     assert expected.notes == actual.notes
     assert expected.optional == actual.optional
-    assert_quantities_equal(expected.to_quantity, actual.to_quantity)
-    assert_quantities_equal(expected.equivalent_quantity, actual.equivalent_quantity)
+    assert_total_quantity_equal(expected.to_quantity, actual.to_quantity)
+    assert_total_quantity_equal(expected.equivalent_quantity, actual.equivalent_quantity)
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [
@@ -97,8 +104,9 @@ def assert_ingredients_equal(expected, actual):
 ])
 def test_parses_ingredient_line(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
-    expected = ingredients.Ingredient(expected_result[2], ingredients.Quantity(expected_result[0], expected_result[1]))
-    assert_ingredients_equal(expected, actual)
+    expected_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[0], expected_result[1])])
+    expected = ingredients.Ingredient(expected_result[2], expected_quantity)
+    assert_ingredient_equal(expected, actual)
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [
@@ -113,9 +121,9 @@ def test_parses_ingredient_line(ingredient_line, expected_result):
 ])
 def test_parses_ingredient_line_with_notes(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
-    expected = ingredients.Ingredient(expected_result[2], ingredients.Quantity(expected_result[0], expected_result[1]),
-                                      notes=expected_result[3])
-    assert_ingredients_equal(expected, actual)
+    expected_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[0], expected_result[1])])
+    expected = ingredients.Ingredient(expected_result[2], expected_quantity, notes=expected_result[3])
+    assert_ingredient_equal(expected, actual)
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [
@@ -134,9 +142,9 @@ def test_parses_ingredient_line_with_notes(ingredient_line, expected_result):
 ])
 def test_parses_optional_ingredient_line(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
-    expected = ingredients.Ingredient(expected_result[2], ingredients.Quantity(expected_result[0], expected_result[1]),
-                                      notes=expected_result[3], optional=True)
-    assert_ingredients_equal(expected, actual)
+    expected_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[0], expected_result[1])])
+    expected = ingredients.Ingredient(expected_result[2], expected_quantity, notes=expected_result[3], optional=True)
+    assert_ingredient_equal(expected, actual)
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [
@@ -179,9 +187,10 @@ def test_parses_optional_ingredient_line(ingredient_line, expected_result):
 ])
 def test_parses_amount_range(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
-    expected = ingredients.Ingredient(expected_result[4], ingredients.Quantity(expected_result[0], expected_result[1]),
-                                      to_quantity=ingredients.Quantity(expected_result[2], expected_result[3]))
-    assert_ingredients_equal(expected, actual)
+    expected_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[0], expected_result[1])])
+    expected_to_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[2], expected_result[3])])
+    expected = ingredients.Ingredient(expected_result[4], expected_quantity, to_quantity=expected_to_quantity)
+    assert_ingredient_equal(expected, actual)
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [
@@ -197,9 +206,11 @@ def test_parses_amount_range(ingredient_line, expected_result):
 ])
 def test_parses_ingredient_line_with_equivalent_quantity(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
-    expected = ingredients.Ingredient(expected_result[2], ingredients.Quantity(expected_result[0], expected_result[1]),
-                                      equivalent_quantity=ingredients.Quantity(expected_result[3], expected_result[4]))
-    assert_ingredients_equal(expected, actual)
+    expected_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[0], expected_result[1])])
+    expected_equiv_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[3], expected_result[4])])
+    expected = ingredients.Ingredient(expected_result[2], expected_quantity,
+                                      equivalent_quantity=expected_equiv_quantity)
+    assert_ingredient_equal(expected, actual)
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [
@@ -219,18 +230,65 @@ def test_parses_ingredient_line_with_equivalent_quantity(ingredient_line, expect
 ])
 def test_parses_ingredient_line_with_approximate_quantity(ingredient_line, expected_result):
     actual = ingredients.Ingredient.parse_line(ingredient_line)
+
+    expected_quantity = ingredients.TotalQuantity([ingredients.Quantity(
+        abs(expected_result[0]),
+        expected_result[1],
+        approximate=expected_result[0] < 0
+    )])
+    expected_to_quantity = ingredients.TotalQuantity([ingredients.Quantity(
+        abs(expected_result[2]) if expected_result[2] is not None else None,
+        expected_result[3],
+        approximate=expected_result[2] is None or expected_result[2] < 0
+    )])
+    expected_equiv_quantity = ingredients.TotalQuantity([ingredients.Quantity(
+        abs(expected_result[5]) if expected_result[5] is not None else None,
+        expected_result[6],
+        approximate=expected_result[5] is None or expected_result[5] < 0
+    )])
     expected = ingredients.Ingredient(
         expected_result[4],
-        ingredients.Quantity(abs(expected_result[0]), expected_result[1], approximate=expected_result[0] < 0),
-        to_quantity=ingredients.Quantity(
-            abs(expected_result[2]) if expected_result[2] is not None else None,
-            expected_result[3],
-            approximate=expected_result[2] is None or expected_result[2] < 0
-        ),
-        equivalent_quantity=ingredients.Quantity(
-            abs(expected_result[5]) if expected_result[5] is not None else None,
-            expected_result[6],
-            approximate=expected_result[5] is None or expected_result[5] < 0
-        ),
+        expected_quantity,
+        to_quantity=expected_to_quantity,
+        equivalent_quantity=expected_equiv_quantity,
     )
-    assert_ingredients_equal(expected, actual)
+    assert_ingredient_equal(expected, actual)
+
+
+@pytest.mark.parametrize("ingredient_line, expected_result", [
+    ('1 cup + 2 tbsp canola or other vegetable oil', ([(1, 'cup'), (2, 'tbsp')], [], 'canola or other vegetable oil', [])),
+    ('1 cup + 2 tbsp + 1 tsp canola or other vegetable oil', ([(1, 'cup'), (2, 'tbsp'), (1, 'tsp')], [], 'canola or other vegetable oil', [])),
+    ('1 cup + ~2 tbsp + 1 tsp canola or other vegetable oil', ([(1, 'cup'), (-2, 'tbsp'), (1, 'tsp')], [], 'canola or other vegetable oil', [])),
+
+    # Other ways of combining amount values
+    ('1 cup plus 2 tbsp canola or other vegetable oil', ([(1, 'cup'), (2, 'tbsp')], [], 'canola or other vegetable oil', [])),
+    ('1 cup and 2 tbsp canola or other vegetable oil', ([(1, 'cup'), (2, 'tbsp')], [], 'canola or other vegetable oil', [])),
+    ('1 cup, 2 tbsp canola or other vegetable oil', ([(1, 'cup'), (2, 'tbsp')], [], 'canola or other vegetable oil', [])),
+
+    # Range
+    ('1 cup + ~2 tbsp + 1 tsp - 1 1/4 cup canola or other vegetable oil', ([(1, 'cup'), (-2, 'tbsp'), (1, 'tsp')], [(1.25, 'cup')], 'canola or other vegetable oil', [])),
+    ('1 cup + ~2 tbsp + 1 tsp - 1 cup + 3 tbsp canola or other vegetable oil', ([(1, 'cup'), (-2, 'tbsp'), (1, 'tsp')], [(1, 'cup'), (3, 'tbsp')], 'canola or other vegetable oil', [])),
+    ('1 cup + ~2 tbsp + 1 tsp ~ 1 cup + 3 tbsp canola or other vegetable oil', ([(1, 'cup'), (-2, 'tbsp'), (1, 'tsp')], [(1, 'cup'), (3, 'tbsp')], 'canola or other vegetable oil', [])),
+])
+def test_parses_ingredient_line_where_ingredient_has_multiple_amount_values(ingredient_line, expected_result):
+    actual = ingredients.Ingredient.parse_line(ingredient_line)
+
+    expected_quantity = ingredients.TotalQuantity([
+        ingredients.Quantity(abs(quantity[0]), quantity[1], approximate=quantity[0] < 0)
+        for quantity in expected_result[0]
+    ])
+    expected_to_quantity = ingredients.TotalQuantity([
+        ingredients.Quantity(abs(quantity[0]), quantity[1], approximate=quantity[0] < 0)
+        for quantity in expected_result[1]
+    ])
+    expected_equiv_quantity = ingredients.TotalQuantity([
+        ingredients.Quantity(abs(quantity[0]), quantity[1], approximate=quantity[0] < 0)
+        for quantity in expected_result[3]
+    ])
+    expected = ingredients.Ingredient(
+        expected_result[2],
+        expected_quantity,
+        to_quantity=expected_to_quantity,
+        equivalent_quantity=expected_equiv_quantity,
+    )
+    assert_ingredient_equal(expected, actual)
