@@ -169,14 +169,137 @@ NO_QUANTITY = Quantity(None, None)
 NO_TOTAL_QUANTITY = TotalQuantity()
 
 
-class IngredientParser:
+class Ingredient:
     def __init__(self,
+                 name: AnyStr,
+                 quantity: TotalQuantity = NO_TOTAL_QUANTITY,
+                 notes: Optional[AnyStr] = None,
+                 optional: bool = False,
+                 to_quantity: TotalQuantity = NO_TOTAL_QUANTITY,
+                 equivalent_quantity: TotalQuantity = NO_TOTAL_QUANTITY,
+                 ):
+        self.name = name
+        self.quantity = quantity
+        self.notes = notes
+        self.optional = optional
+        self.to_quantity = to_quantity
+        self.equivalent_quantity = equivalent_quantity
+
+    def equals(self, other, compare_notes=True, compare_optional=True, compare_equivalent_quantity=False):
+        return isinstance(other, self.__class__) and \
+               self.name == other.name and \
+               self.quantity == other.quantity and \
+               (not compare_notes or self.notes == other.notes) and \
+               (not compare_optional or self.optional == other.optional) and \
+               self.to_quantity == other.to_quantity and \
+               (not compare_equivalent_quantity or self.equivalent_quantity == other.equivalent_quantity)
+
+    def __eq__(self, other):
+        return self.equals(other, True, True, True)
+
+    def __str__(self):
+        ingredient = []
+        if self.quantity:
+            ingredient.append(str(self.quantity))
+            if self.to_quantity:
+                ingredient.extend(['-', str(self.to_quantity)])
+
+        if self.equivalent_quantity:
+            ingredient.append(f'({self.equivalent_quantity}')
+
+        ingredient.append(self.name)
+
+        if self.notes:
+            ingredient.append(f'({self.notes})')
+
+        if self.optional:
+            ingredient.append('(optional)')
+
+        return ' '.join(ingredient)
+
+    def __repr__(self):
+        attribs = ['name', 'quantity', 'notes', 'optional', 'to_quantity', 'equivalent_quantity']
+        attrib_list = ', '.join(f'{attrib}={getattr(self, attrib)!r}' for attrib in attribs)
+        return f'{self.__class__.__name__}({attrib_list})'
+
+
+class BasicIngredientParser:
+    DEFAULT_OPTIONAL_REGEX = r'\s*[,(]?\s*optional\s*\)?'
+
+    def __init__(self, *, optional_regex=DEFAULT_OPTIONAL_REGEX):
+        self.optional_regex = optional_regex
+
+    def __call__(self, text: str) -> Ingredient:
+        deoptionalized_ingredient_line = self.deoptionalize_ingredient_line(text)
+        optional = (text != deoptionalized_ingredient_line)
+        text = deoptionalized_ingredient_line
+
+        quantity = NO_TOTAL_QUANTITY
+        to_quantity = NO_TOTAL_QUANTITY
+        name = text
+        equivalent_quantity = NO_TOTAL_QUANTITY
+
+        if name.lower().startswith('of'):
+            name = name[2:].lstrip()
+
+        name, note = self.extract_note_from_name(name)
+
+        return Ingredient(name, quantity, note, optional, to_quantity=to_quantity,
+                          equivalent_quantity=equivalent_quantity)
+
+    def deoptionalize_ingredient_line(self, text) -> str:
+        deoptionalized_ingredient_line = regex.sub(self.optional_regex, '', text, flags=re.IGNORECASE)
+        return deoptionalized_ingredient_line
+
+    @staticmethod
+    def partial_format(template, **kwargs):
+        class DefaultDict(dict):
+            def __missing__(self, key):
+                return '{' + key + '}'
+
+        return template.format_map(DefaultDict(**kwargs))
+
+    @staticmethod
+    def extract_note_from_name(name):
+        i_comma = name.find(',')
+        i_paren = name.find('(')
+
+        def extract_comma(text, i):
+            return text[:i].strip(), text[i + 1:].strip()
+
+        def extract_paren(text, i):
+            name = text[:i].strip()
+            note = text[i + 1:].rstrip(')').strip()
+            return name, note
+
+        if i_comma == -1:
+            if i_paren == -1:
+                name, note = name, None
+            else:
+                name, note = extract_paren(name, i_paren)
+        elif i_paren == -1:
+            name, note = extract_comma(name, i_comma)
+        elif i_paren < i_comma:
+            name, note = extract_paren(name, i_paren)
+        else:
+            name, note = extract_comma(name, i_comma)
+
+        if note is not None and len(note) == 0:
+            note = None
+        return name, note
+
+
+class IngredientParser(BasicIngredientParser):
+    def __init__(self,
+                 *,
                  approx_regex=r'(?:~|about|approx(?:\.|imately)?)',
                  amount_regex=r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+',
                  units=tuple(all_units),
                  plus_regex='|'.join([r'\+', 'and', 'plus', ',']),
                  dash_regex=r'(?:[-\u2012-\u2015\u2053~]|to)',
+                 optional_regex=BasicIngredientParser.DEFAULT_OPTIONAL_REGEX,
                  ):
+        super().__init__(optional_regex=optional_regex)
         self.approx_regex = approx_regex
         self.amount_regex = amount_regex
         self.units = units
@@ -296,123 +419,28 @@ class IngredientParser:
         return quantity, to_quantity, equivalent_quantity, name, note
 
     def parse(self, text):
+        deoptionalized_ingredient_line = self.deoptionalize_ingredient_line(text)
+        optional = (text != deoptionalized_ingredient_line)
+        text = deoptionalized_ingredient_line
+
         res = regex.match(fr'\s*{self.get_regex()}\s*', text, flags=re.IGNORECASE)
         if res:
-            return self.parse_match(res)
+            quantity, to_quantity, equivalent_quantity, name, note = self.parse_match(res)
+            return Ingredient(name, quantity, note, optional, to_quantity=to_quantity,
+                              equivalent_quantity=equivalent_quantity)
         else:
             return None
 
-    @staticmethod
-    def partial_format(template, **kwargs):
-        class DefaultDict(dict):
-            def __missing__(self, key):
-                return '{' + key + '}'
-
-        return template.format_map(DefaultDict(**kwargs))
-
-    @staticmethod
-    def extract_note_from_name(name):
-        i_comma = name.find(',')
-        i_paren = name.find('(')
-
-        def extract_comma(text, i):
-            return text[:i].strip(), text[i + 1:].strip()
-
-        def extract_paren(text, i):
-            name = text[:i].strip()
-            note = text[i + 1:].rstrip(')').strip()
-            return name, note
-
-        if i_comma == -1:
-            if i_paren == -1:
-                name, note = name, None
-            else:
-                name, note = extract_paren(name, i_paren)
-        elif i_paren == -1:
-            name, note = extract_comma(name, i_comma)
-        elif i_paren < i_comma:
-            name, note = extract_paren(name, i_paren)
-        else:
-            name, note = extract_comma(name, i_comma)
-
-        if note is not None and len(note) == 0:
-            note = None
-        return name, note
+    def __call__(self, text):
+        return self.parse(text)
 
 
-class Ingredient:
-    def __init__(self,
-                 name: AnyStr,
-                 quantity: TotalQuantity = NO_TOTAL_QUANTITY,
-                 notes: Optional[AnyStr] = None,
-                 optional: bool = False,
-                 to_quantity: TotalQuantity = NO_TOTAL_QUANTITY,
-                 equivalent_quantity: TotalQuantity = NO_TOTAL_QUANTITY,
-                 ):
-        self.name = name
-        self.quantity = quantity
-        self.notes = notes
-        self.optional = optional
-        self.to_quantity = to_quantity
-        self.equivalent_quantity = equivalent_quantity
+DEFAULT_INGREDIENT_PARSERS = [IngredientParser(), BasicIngredientParser()]
 
-    def equals(self, other, compare_notes=True, compare_optional=True, compare_equivalent_quantity=False):
-        return isinstance(other, self.__class__) and \
-               self.name == other.name and \
-               self.quantity == other.quantity and \
-               (not compare_notes or self.notes == other.notes) and \
-               (not compare_optional or self.optional == other.optional) and \
-               self.to_quantity == other.to_quantity and \
-               (not compare_equivalent_quantity or self.equivalent_quantity == other.equivalent_quantity)
 
-    def __eq__(self, other):
-        return self.equals(other, True, True, True)
-
-    def __str__(self):
-        ingredient = []
-        if self.quantity:
-            ingredient.append(str(self.quantity))
-            if self.to_quantity:
-                ingredient.extend(['-', str(self.to_quantity)])
-
-        if self.equivalent_quantity:
-            ingredient.append(f'({self.equivalent_quantity}')
-
-        ingredient.append(self.name)
-
-        if self.notes:
-            ingredient.append(f'({self.notes})')
-
-        if self.optional:
-            ingredient.append('(optional)')
-
-        return ' '.join(ingredient)
-
-    def __repr__(self):
-        attribs = ['name', 'quantity', 'notes', 'optional', 'to_quantity', 'equivalent_quantity']
-        attrib_list = ', '.join(f'{attrib}={getattr(self, attrib)!r}' for attrib in attribs)
-        return f'{self.__class__.__name__}({attrib_list})'
-
-    @classmethod
-    def parse_line(cls, ingredient_line: AnyStr) -> 'Ingredient':
-        parser1 = IngredientParser()
-
-        deoptionalized_ingredient_line = regex.sub(r'\s*[,(]?\s*optional\s*\)?', '', ingredient_line, flags=re.IGNORECASE)
-        optional = (ingredient_line != deoptionalized_ingredient_line)
-        ingredient_line = deoptionalized_ingredient_line
-
-        parsed_content = parser1.parse(ingredient_line)
-        if parsed_content:
-            quantity, to_quantity, equivalent_quantity, name, note = parsed_content
-        else:
-            quantity = NO_TOTAL_QUANTITY
-            to_quantity = NO_TOTAL_QUANTITY
-            name = ingredient_line
-            equivalent_quantity = NO_TOTAL_QUANTITY
-
-            if name.lower().startswith('of'):
-                name = name[2:].lstrip()
-
-            name, note = parser1.extract_note_from_name(name)
-
-        return Ingredient(name, quantity, note, optional, to_quantity=to_quantity, equivalent_quantity=equivalent_quantity)
+def parse_ingredient_line(ingredient_line, parsers=None) -> Optional[Ingredient]:
+    parsers = parsers or DEFAULT_INGREDIENT_PARSERS
+    for parser in parsers:
+        parsed_ingredient = parser(ingredient_line)
+        if parsed_ingredient is not None:
+            return parsed_ingredient

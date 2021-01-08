@@ -103,7 +103,7 @@ def assert_ingredient_equal(expected, actual):
     ('salt and black pepper to taste', (None, None, 'salt and black pepper to taste')),
 ])
 def test_parses_ingredient_line(ingredient_line, expected_result):
-    actual = ingredients.Ingredient.parse_line(ingredient_line)
+    actual = ingredients.parse_ingredient_line(ingredient_line)
     expected_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[0], expected_result[1])])
     expected = ingredients.Ingredient(expected_result[2], expected_quantity)
     assert_ingredient_equal(expected, actual)
@@ -120,7 +120,7 @@ def test_parses_ingredient_line(ingredient_line, expected_result):
     ('2 blocks tofu (drained, diced, and frozen)', (2, 'blocks', 'tofu', 'drained, diced, and frozen')),
 ])
 def test_parses_ingredient_line_with_notes(ingredient_line, expected_result):
-    actual = ingredients.Ingredient.parse_line(ingredient_line)
+    actual = ingredients.parse_ingredient_line(ingredient_line)
     expected_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[0], expected_result[1])])
     expected = ingredients.Ingredient(expected_result[2], expected_quantity, notes=expected_result[3])
     assert_ingredient_equal(expected, actual)
@@ -141,7 +141,7 @@ def test_parses_ingredient_line_with_notes(ingredient_line, expected_result):
     ('200 mL milk (room temperature), optional', (200, 'mL', 'milk', 'room temperature')),
 ])
 def test_parses_optional_ingredient_line(ingredient_line, expected_result):
-    actual = ingredients.Ingredient.parse_line(ingredient_line)
+    actual = ingredients.parse_ingredient_line(ingredient_line)
     expected_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[0], expected_result[1])])
     expected = ingredients.Ingredient(expected_result[2], expected_quantity, notes=expected_result[3], optional=True)
     assert_ingredient_equal(expected, actual)
@@ -186,7 +186,7 @@ def test_parses_optional_ingredient_line(ingredient_line, expected_result):
     ('2 tsp-3tbsp chili powder', (2, 'tsp', 3, 'tbsp', 'chili powder')),
 ])
 def test_parses_amount_range(ingredient_line, expected_result):
-    actual = ingredients.Ingredient.parse_line(ingredient_line)
+    actual = ingredients.parse_ingredient_line(ingredient_line)
     expected_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[0], expected_result[1])])
     expected_to_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[2], expected_result[3])])
     expected = ingredients.Ingredient(expected_result[4], expected_quantity, to_quantity=expected_to_quantity)
@@ -205,7 +205,7 @@ def test_parses_amount_range(ingredient_line, expected_result):
     ('295 mL (1¼ cup) canola or other vegetable oil', (295, 'mL', 'canola or other vegetable oil', 1.25, 'cup')),
 ])
 def test_parses_ingredient_line_with_equivalent_quantity(ingredient_line, expected_result):
-    actual = ingredients.Ingredient.parse_line(ingredient_line)
+    actual = ingredients.parse_ingredient_line(ingredient_line)
     expected_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[0], expected_result[1])])
     expected_equiv_quantity = ingredients.TotalQuantity([ingredients.Quantity(expected_result[3], expected_result[4])])
     expected = ingredients.Ingredient(expected_result[2], expected_quantity,
@@ -229,7 +229,7 @@ def test_parses_ingredient_line_with_equivalent_quantity(ingredient_line, expect
     ('~2~ about 3 tbsp chili powder', (-2, 'tbsp', -3, 'tbsp', 'chili powder', None, None)),
 ])
 def test_parses_ingredient_line_with_approximate_quantity(ingredient_line, expected_result):
-    actual = ingredients.Ingredient.parse_line(ingredient_line)
+    actual = ingredients.parse_ingredient_line(ingredient_line)
 
     expected_quantity = ingredients.TotalQuantity([ingredients.Quantity(
         abs(expected_result[0]),
@@ -271,7 +271,7 @@ def test_parses_ingredient_line_with_approximate_quantity(ingredient_line, expec
     ('1 cup + ~2 tbsp + 1 tsp ~ 1 cup + 3 tbsp canola or other vegetable oil', ([(1, 'cup'), (-2, 'tbsp'), (1, 'tsp')], [(1, 'cup'), (3, 'tbsp')], 'canola or other vegetable oil', [])),
 ])
 def test_parses_ingredient_line_where_ingredient_has_multiple_amount_values(ingredient_line, expected_result):
-    actual = ingredients.Ingredient.parse_line(ingredient_line)
+    actual = ingredients.parse_ingredient_line(ingredient_line)
 
     expected_quantity = ingredients.TotalQuantity([
         ingredients.Quantity(abs(quantity[0]), quantity[1], approximate=quantity[0] < 0)
