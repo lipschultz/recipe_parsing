@@ -81,6 +81,22 @@ def to_number(value: str) -> Optional[Number]:
         return None
 
     value = value.strip()
+
+    # Remove space(s) around a division (e.g. '1 /2' -> '1/2')
+    pieces = list(reversed(value.split()))
+    combined_pieces = []
+    while pieces:
+        piece = pieces.pop()
+        if piece == '/':
+            combined_pieces[-1] += piece + pieces.pop()
+        elif piece.startswith('/'):
+            combined_pieces[-1] += piece
+        elif piece.endswith('/'):
+            combined_pieces.append(piece + pieces.pop())
+        else:
+            combined_pieces.append(piece)
+    value = ' '.join(combined_pieces)
+
     if len(value) == 0:
         return None
     elif len(value) == 1:

@@ -18,6 +18,9 @@ from recipe_parser import ingredients
     ('2 ½', 2.5),
     ('2½', 2.5),
     ('2 ½', 2.5),
+    ('1 /2', 0.5),
+    ('1/ 2', 0.5),
+    ('1 / 2', 0.5),
     ('not number', None),
     ('', None),
     ('has1number', None),
@@ -79,6 +82,12 @@ def assert_ingredient_equal(expected, actual):
     ('2½teaspoons chili powder', (2.5, 'teaspoons', 'chili powder')),
     ('2½ teaspoons of chili powder', (2.5, 'teaspoons', 'chili powder')),
     ('2½ teaspoons Of chili powder', (2.5, 'teaspoons', 'chili powder')),
+
+    # Amount unit name (with spaces in fraction)
+    ('1 /2 teaspoons chili powder', (0.5, 'teaspoons', 'chili powder')),
+    ('1/ 2 teaspoons chili powder', (0.5, 'teaspoons', 'chili powder')),
+    ('1 /2teaspoons chili powder', (0.5, 'teaspoons', 'chili powder')),
+    ('1/ 2teaspoons chili powder', (0.5, 'teaspoons', 'chili powder')),
 
     # Amount name
     ('2 onions', (2, None, 'onions')),
