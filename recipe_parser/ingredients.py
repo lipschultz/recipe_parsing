@@ -71,7 +71,7 @@ _unit_modifier_pre_unit = [
 _unit_modifier_post_unit = [r'\+']
 
 
-units = _units_weights + _units_volumes + _units_length + _units_amounts
+all_units = _units_weights + _units_volumes + _units_length + _units_amounts
 
 
 def to_number(value: str) -> Optional[Number]:
@@ -169,6 +169,107 @@ NO_QUANTITY = Quantity(None, None)
 NO_TOTAL_QUANTITY = TotalQuantity()
 
 
+class IngredientParser:
+    def __init__(self,
+                 approx_regex=r'(?:~|about|approx(?:\.|imately)?)',
+                 amount_regex=r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+',
+                 units=tuple(all_units),
+                 plus_regex='|'.join([r'\+', 'and', 'plus', ',']),
+                 ):
+        self.approx_regex = approx_regex
+        self.amount_regex = amount_regex
+        self.units = units
+        self.plus_regex = plus_regex
+
+    @property
+    def units_regex(self):
+        if isinstance(self.units, str):
+            return self.units
+        else:
+            return '|'.join(self.units)
+
+    @property
+    def quantity_regex_raw_fmt(self):
+        return r'(?P<approx{label}>{approx_regex})?\s*(?P<amount{label}>{amount_regex})?\s*(?P<unit{label}>{unit_regex})?\.?'
+
+    @property
+    def quantity_regex_fmt(self):
+        return self.partial_format(
+            self.quantity_regex_raw_fmt,
+            approx_regex=self.approx_regex,
+            amount_regex=self.amount_regex,
+            unit_regex=self.units_regex,
+        )
+
+    def get_quantity_regex(self, label):
+        return self.quantity_regex_fmt.format(label=label)
+
+    def parse_quantity_match(self, res, label) -> Quantity:
+        return Quantity(to_number(res.group(f'amount{label}')), res.group(f'unit{label}'), bool(res.group(f'approx{label}')))
+
+    @property
+    def quantity_total_regex_raw_fmt(self):
+        return self.quantity_regex_fmt +\
+               r'(?:\s*(?:{plus_regex})\s*(?P<subsequent{label}>' + self.partial_format(self.quantity_regex_fmt, label="{label}_subsequent") + '))*'
+
+    @property
+    def quantity_total_regex_fmt(self):
+        return self.partial_format(
+            self.quantity_total_regex_raw_fmt,
+            approx_regex=self.approx_regex,
+            amount_regex=self.amount_regex,
+            unit_regex=self.units_regex,
+            plus_regex=self.plus_regex,
+        )
+
+    def get_quantity_total_regex(self, label):
+        return self.quantity_total_regex_fmt.format(label=label)
+
+    def parse_quantity_total_match(self, res, label) -> TotalQuantity:
+        total_quantity = [self.parse_quantity_match(res, label)]
+        for subs in res.captures(f'subsequent{label}'):
+            subs_res = regex.fullmatch(self.get_quantity_regex(''), subs, flags=re.IGNORECASE)
+            total_quantity.append(self.parse_quantity_match(subs_res, ''))
+        return TotalQuantity(total_quantity)
+
+    @staticmethod
+    def partial_format(template, **kwargs):
+        class DefaultDict(dict):
+            def __missing__(self, key):
+                return '{' + key + '}'
+
+        return template.format_map(DefaultDict(**kwargs))
+
+    @staticmethod
+    def extract_note_from_name(name):
+        i_comma = name.find(',')
+        i_paren = name.find('(')
+
+        def extract_comma(text, i):
+            return text[:i].strip(), text[i + 1:].strip()
+
+        def extract_paren(text, i):
+            name = text[:i].strip()
+            note = text[i + 1:].rstrip(')').strip()
+            return name, note
+
+        if i_comma == -1:
+            if i_paren == -1:
+                name, note = name, None
+            else:
+                name, note = extract_paren(name, i_paren)
+        elif i_paren == -1:
+            name, note = extract_comma(name, i_comma)
+        elif i_paren < i_comma:
+            name, note = extract_paren(name, i_paren)
+        else:
+            name, note = extract_comma(name, i_comma)
+
+        if note is not None and len(note) == 0:
+            note = None
+        return name, note
+
+
 class Ingredient:
     def __init__(self,
                  name: AnyStr,
@@ -222,59 +323,15 @@ class Ingredient:
         attrib_list = ', '.join(f'{attrib}={getattr(self, attrib)!r}' for attrib in attribs)
         return f'{self.__class__.__name__}({attrib_list})'
 
-    @staticmethod
-    def _extract_note_from_name(text):
-        i_comma = text.find(',')
-        i_paren = text.find('(')
-
-        def extract_comma(text, i):
-            return text[:i].strip(), text[i + 1:].strip()
-
-        def extract_paren(text, i):
-            name = text[:i].strip()
-            note = text[i + 1:].rstrip(')').strip()
-            return name, note
-
-        if i_comma == -1:
-            if i_paren == -1:
-                name, note = text, None
-            else:
-                name, note = extract_paren(text, i_paren)
-        elif i_paren == -1:
-            name, note = extract_comma(text, i_comma)
-        elif i_paren < i_comma:
-            name, note = extract_paren(text, i_paren)
-        else:
-            name, note = extract_comma(text, i_comma)
-
-        if note is not None and len(note) == 0:
-            note = None
-        return name, note
-
-    @staticmethod
-    def _partial_format(template, **kwargs):
-        class DefaultDict(dict):
-            def __missing__(self, key):
-                return '{' + key + '}'
-
-        return template.format_map(DefaultDict(**kwargs))
-
     @classmethod
     def parse_line(cls, ingredient_line: AnyStr) -> 'Ingredient':
-        number_regex = r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+'
         dash_regex = r'(?:[-\u2012-\u2015\u2053~]|to)'
-        approx_regex = r'(?:~|about|approx(?:\.|imately)?)'
-        units_regex = '|'.join(units)
-        plus_regex = '|'.join([r'\+', 'and', 'plus', ','])
 
-        quantity_regex_fmt = r'(?P<approx{label}>{approx_regex})?\s*(?P<amount{label}>{amount_regex})?\s*(?P<unit{label}>{unit_regex})?\.?'
-        parse_quantity_regex = lambda res, label: (to_number(res.group(f'amount{label}')), res.group(f'unit{label}'), bool(res.group(f'approx{label}')))
+        parser1 = IngredientParser()
 
-        quantity_group_regex_fmt = quantity_regex_fmt + r'(?:\s*(?:' + plus_regex + r')\s*(?P<subsequent{label}>' + cls._partial_format(quantity_regex_fmt, label="{label}_subsequent") + '))*'
-
-        ingredient_regex = quantity_group_regex_fmt.format(label='1', approx_regex=approx_regex, amount_regex=number_regex, unit_regex=units_regex) + \
-                           fr'(?:\s*{dash_regex}\s*' + quantity_group_regex_fmt.format(label='2', approx_regex=approx_regex, amount_regex=number_regex, unit_regex=units_regex) + r')?'\
-                           r'\s*(?:\(' + quantity_group_regex_fmt.format(label='_equiv1', approx_regex=approx_regex, amount_regex=number_regex, unit_regex=units_regex) + r'\))?' + \
+        ingredient_regex = parser1.quantity_total_regex_fmt.format(label='1') + \
+                           fr'(?:\s*{dash_regex}\s*' + parser1.quantity_total_regex_fmt.format(label='2') + r')?'\
+                           r'\s*(?:\(' + parser1.quantity_total_regex_fmt.format(label='_equiv1') + r'\))?' + \
                            r'\s+(?P<name>.+)'
 
         deoptionalized_ingredient_line = regex.sub(r'\s*[,(]?\s*optional\s*\)?', '', ingredient_line, flags=re.IGNORECASE)
@@ -283,30 +340,13 @@ class Ingredient:
 
         res = regex.match(fr'\s*{ingredient_regex}\s*', ingredient_line, flags=re.IGNORECASE)
         if res:
-            amount, amount_unit, amount_approx = parse_quantity_regex(res, '1')
-            to_amount, to_amount_unit, to_amount_approx = parse_quantity_regex(res, '2')
+            quantity = parser1.parse_quantity_total_match(res, '1')
+            to_quantity = parser1.parse_quantity_total_match(res, '2')
 
-            total_quantity = [Quantity(amount, amount_unit or to_amount_unit, approximate=amount_approx)]
-            for subs in res.captures('subsequent1'):
-                subs_res = regex.fullmatch(quantity_regex_fmt.format(label='', approx_regex=approx_regex, amount_regex=number_regex, unit_regex=units_regex), subs, flags=re.IGNORECASE)
-                subs_amount, subs_amount_unit, subs_amount_approx = parse_quantity_regex(subs_res, '')
-                total_quantity.append(Quantity(subs_amount, subs_amount_unit, approximate=subs_amount_approx))
-            quantity = TotalQuantity(total_quantity)
+            if len(quantity) and quantity[0].unit is None and len(to_quantity):
+                quantity[0].unit = to_quantity[0].unit
 
-            total_to_quantity = [Quantity(to_amount, to_amount_unit, approximate=to_amount_approx)]
-            for subs in res.captures('subsequent2'):
-                subs_res = regex.fullmatch(quantity_regex_fmt.format(label='', approx_regex=approx_regex, amount_regex=number_regex, unit_regex=units_regex), subs, flags=re.IGNORECASE)
-                subs_amount, subs_amount_unit, subs_amount_approx = parse_quantity_regex(subs_res, '')
-                total_to_quantity.append(Quantity(subs_amount, subs_amount_unit, approximate=subs_amount_approx))
-            to_quantity = TotalQuantity(total_to_quantity)
-
-            equivalent1_amount, equivalent1_unit, equivalent1_approx = parse_quantity_regex(res, '_equiv1')
-            total_equivalent_quantity = [Quantity(equivalent1_amount, equivalent1_unit, approximate=equivalent1_approx)]
-            for subs in res.captures('subsequent_equiv1'):
-                subs_res = regex.fullmatch(quantity_regex_fmt.format(label='', approx_regex=approx_regex, amount_regex=number_regex, unit_regex=units_regex), subs, flags=re.IGNORECASE)
-                subs_amount, subs_amount_unit, subs_amount_approx = parse_quantity_regex(subs_res, '')
-                total_equivalent_quantity.append(Quantity(subs_amount, subs_amount_unit, approximate=subs_amount_approx))
-            equivalent_quantity = TotalQuantity(total_equivalent_quantity)
+            equivalent_quantity = parser1.parse_quantity_total_match(res, '_equiv1')
 
             name = res.group('name')
         else:
@@ -318,6 +358,6 @@ class Ingredient:
         if name.lower().startswith('of'):
             name = name[2:].lstrip()
 
-        name, note = cls._extract_note_from_name(name)
+        name, note = parser1.extract_note_from_name(name)
 
         return Ingredient(name, quantity, note, optional, to_quantity=to_quantity, equivalent_quantity=equivalent_quantity)

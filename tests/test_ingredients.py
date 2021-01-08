@@ -292,3 +292,32 @@ def test_parses_ingredient_line_where_ingredient_has_multiple_amount_values(ingr
         equivalent_quantity=expected_equiv_quantity,
     )
     assert_ingredient_equal(expected, actual)
+
+
+"""
+Additional cases:
+equivalences:
+    2 cups all-purpose flour (250 grams)
+    1 1/4 cups canola or other vegetable oil (295 ml)
+    3 cups grated peeled carrots (300 grams, 5 to 6 medium carrots)
+    1 cup lightly packed brown sugar (200 grams)
+two amounts:
+    1 cup + 2 tbsp flour
+    1 cup and 2 tbsp flour
+    1 cup, 2 tbsp flour
+notes/comments:
+    1 cup lightly packed brown sugar
+unit size:
+    2 16-oz cans of crushed tomatoes
+    2 16 oz cans of crushed tomatoes
+    2 16oz cans of crushed tomatoes
+    2 (16-oz) cans of crushed tomatoes
+    2 large bags of chocolate chips
+    1 heaping tablespoon of red pepper flakes
+    2 rounded Tbsp. cornstarch
+    Scant 1/4 cup white candy coating, such as Wilton Candy Melts
+    a scant 1/2 teaspoon crumbled dried sage
+    1 scant Tbsp. lemon juice
+    a pinch of salt
+    a cup of water
+"""
