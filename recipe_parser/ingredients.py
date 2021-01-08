@@ -209,8 +209,8 @@ class IngredientParser:
 
     @property
     def quantity_total_regex_raw_fmt(self):
-        return self.quantity_regex_fmt +\
-               r'(?:\s*(?:{plus_regex})\s*(?P<subsequent{label}>' + self.partial_format(self.quantity_regex_fmt, label="{label}_subsequent") + '))*'
+        return self.quantity_regex_raw_fmt +\
+               r'(?:\s*(?:{plus_regex})\s*(?P<subsequent{label}>' + self.partial_format(self.quantity_regex_raw_fmt, label="{label}_subsequent") + '))*'
 
     @property
     def quantity_total_regex_fmt(self):
