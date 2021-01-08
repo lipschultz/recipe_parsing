@@ -175,11 +175,13 @@ class IngredientParser:
                  amount_regex=r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+',
                  units=tuple(all_units),
                  plus_regex='|'.join([r'\+', 'and', 'plus', ',']),
+                 dash_regex=r'(?:[-\u2012-\u2015\u2053~]|to)',
                  ):
         self.approx_regex = approx_regex
         self.amount_regex = amount_regex
         self.units = units
         self.plus_regex = plus_regex
+        self.dash_regex = dash_regex
 
     @property
     def units_regex(self):
@@ -231,6 +233,74 @@ class IngredientParser:
             subs_res = regex.fullmatch(self.get_quantity_regex(''), subs, flags=re.IGNORECASE)
             total_quantity.append(self.parse_quantity_match(subs_res, ''))
         return TotalQuantity(total_quantity)
+
+    @property
+    def quantity_range_regex_raw_fmt(self):
+        return self.partial_format(self.quantity_total_regex_raw_fmt, label="{label}from") + \
+               r'(?:\s*{dash_regex}\s*' + \
+               self.partial_format(self.quantity_total_regex_raw_fmt, label="{label}to") + \
+               r')?' + \
+               r'\s*(?:\(' + self.partial_format(self.quantity_total_regex_raw_fmt, label="{label}equivalent") + r'\))?'
+
+    @property
+    def quantity_range_regex_fmt(self):
+        return self.partial_format(
+            self.quantity_range_regex_raw_fmt,
+            approx_regex=self.approx_regex,
+            amount_regex=self.amount_regex,
+            unit_regex=self.units_regex,
+            plus_regex=self.plus_regex,
+            dash_regex=self.dash_regex,
+        )
+
+    def get_quantity_range_regex(self, label=''):
+        return self.quantity_range_regex_fmt.format(label=label)
+
+    def parse_quantity_range_match(self, res, label=''):
+        from_quantity = self.parse_quantity_total_match(res, f"{label}from")
+        to_quantity = self.parse_quantity_total_match(res, f"{label}to")
+
+        if len(from_quantity) and from_quantity[0].unit is None and len(to_quantity):
+            from_quantity[0].unit = to_quantity[0].unit
+
+        equivalent_quantity = self.parse_quantity_total_match(res, f"{label}equivalent")
+        return from_quantity, to_quantity, equivalent_quantity
+
+    @property
+    def regex_raw_fmt(self):
+        return self.quantity_range_regex_raw_fmt + r'\s+(?P<name>.+)'
+
+    @property
+    def regex_fmt(self):
+        return self.partial_format(
+            self.regex_raw_fmt,
+            approx_regex=self.approx_regex,
+            amount_regex=self.amount_regex,
+            unit_regex=self.units_regex,
+            plus_regex=self.plus_regex,
+            dash_regex=self.dash_regex,
+        )
+
+    def get_regex(self, label=''):
+        return self.regex_fmt.format(label=label)
+
+    def parse_match(self, res, label=''):
+        quantity, to_quantity, equivalent_quantity = self.parse_quantity_range_match(res, label=label)
+
+        name = res.group('name')
+        if name.lower().startswith('of'):
+            name = name[2:].lstrip()
+
+        name, note = self.extract_note_from_name(name)
+
+        return quantity, to_quantity, equivalent_quantity, name, note
+
+    def parse(self, text):
+        res = regex.match(fr'\s*{self.get_regex()}\s*', text, flags=re.IGNORECASE)
+        if res:
+            return self.parse_match(res)
+        else:
+            return None
 
     @staticmethod
     def partial_format(template, **kwargs):
@@ -325,39 +395,24 @@ class Ingredient:
 
     @classmethod
     def parse_line(cls, ingredient_line: AnyStr) -> 'Ingredient':
-        dash_regex = r'(?:[-\u2012-\u2015\u2053~]|to)'
-
         parser1 = IngredientParser()
-
-        ingredient_regex = parser1.quantity_total_regex_fmt.format(label='1') + \
-                           fr'(?:\s*{dash_regex}\s*' + parser1.quantity_total_regex_fmt.format(label='2') + r')?'\
-                           r'\s*(?:\(' + parser1.quantity_total_regex_fmt.format(label='_equiv1') + r'\))?' + \
-                           r'\s+(?P<name>.+)'
 
         deoptionalized_ingredient_line = regex.sub(r'\s*[,(]?\s*optional\s*\)?', '', ingredient_line, flags=re.IGNORECASE)
         optional = (ingredient_line != deoptionalized_ingredient_line)
         ingredient_line = deoptionalized_ingredient_line
 
-        res = regex.match(fr'\s*{ingredient_regex}\s*', ingredient_line, flags=re.IGNORECASE)
-        if res:
-            quantity = parser1.parse_quantity_total_match(res, '1')
-            to_quantity = parser1.parse_quantity_total_match(res, '2')
-
-            if len(quantity) and quantity[0].unit is None and len(to_quantity):
-                quantity[0].unit = to_quantity[0].unit
-
-            equivalent_quantity = parser1.parse_quantity_total_match(res, '_equiv1')
-
-            name = res.group('name')
+        parsed_content = parser1.parse(ingredient_line)
+        if parsed_content:
+            quantity, to_quantity, equivalent_quantity, name, note = parsed_content
         else:
             quantity = NO_TOTAL_QUANTITY
             to_quantity = NO_TOTAL_QUANTITY
             name = ingredient_line
             equivalent_quantity = NO_TOTAL_QUANTITY
 
-        if name.lower().startswith('of'):
-            name = name[2:].lstrip()
+            if name.lower().startswith('of'):
+                name = name[2:].lstrip()
 
-        name, note = parser1.extract_note_from_name(name)
+            name, note = parser1.extract_note_from_name(name)
 
         return Ingredient(name, quantity, note, optional, to_quantity=to_quantity, equivalent_quantity=equivalent_quantity)
