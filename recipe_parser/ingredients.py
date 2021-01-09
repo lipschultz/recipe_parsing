@@ -1,4 +1,3 @@
-import re
 import unicodedata
 from typing import AnyStr, Optional, Union, Iterable
 
@@ -286,7 +285,7 @@ class BasicIngredientParser:
         return Ingredient(name, quantity, note, optional)
 
     def deoptionalize_ingredient_line(self, text) -> str:
-        deoptionalized_ingredient_line = regex.sub(self.optional_regex, '', text, flags=re.IGNORECASE)
+        deoptionalized_ingredient_line = regex.sub(self.optional_regex, '', text, flags=regex.IGNORECASE)
         return deoptionalized_ingredient_line
 
     @staticmethod
@@ -391,7 +390,7 @@ class IngredientParser(BasicIngredientParser):
     def parse_quantity_total_match(self, res, label) -> TotalQuantity:
         total_quantity = [self.parse_quantity_match(res, label)]
         for subs in res.captures(f'subsequent{label}'):
-            subs_res = regex.fullmatch(self.get_quantity_regex(''), subs, flags=re.IGNORECASE)
+            subs_res = regex.fullmatch(self.get_quantity_regex(''), subs, flags=regex.IGNORECASE)
             total_quantity.append(self.parse_quantity_match(subs_res, ''))
         return TotalQuantity(total_quantity)
 
@@ -466,7 +465,7 @@ class IngredientParser(BasicIngredientParser):
         optional = (text != deoptionalized_ingredient_line)
         text = deoptionalized_ingredient_line
 
-        res = regex.fullmatch(fr'\s*{self.get_regex()}\s*', text, flags=re.IGNORECASE)
+        res = regex.fullmatch(fr'\s*{self.get_regex()}\s*', text, flags=regex.IGNORECASE)
         if res:
             quantity, name, note = self.parse_match(res)
             return Ingredient(name, quantity, note, optional)
