@@ -3,7 +3,7 @@ from typing import AnyStr, Optional, Union, Iterable
 
 import regex
 
-from recipe_parser.units import american_units
+from recipe_parser.units import american_units, UnitsRegistry
 
 Number = Union[int, float]
 
@@ -266,7 +266,7 @@ class IngredientParser(BasicIngredientParser):
                  *,
                  approx_regex=r'(?:~|about|approx(?:\.|imately)?)',
                  amount_regex=r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+',
-                 units=tuple(american_units.all_units_as_regex_strings()),
+                 units_registry: UnitsRegistry = american_units,
                  plus_regex='|'.join([r'\+', 'and', 'plus', ',']),
                  dash_regex=r'(?:[-\u2012-\u2015\u2053~]|to)',
                  optional_regex=BasicIngredientParser.DEFAULT_OPTIONAL_REGEX,
@@ -274,16 +274,13 @@ class IngredientParser(BasicIngredientParser):
         super().__init__(optional_regex=optional_regex)
         self.approx_regex = approx_regex
         self.amount_regex = amount_regex
-        self.units = units
+        self.units_registry = units_registry
         self.plus_regex = plus_regex
         self.dash_regex = dash_regex
 
     @property
     def units_regex(self):
-        if isinstance(self.units, str):
-            return self.units
-        else:
-            return '|'.join(self.units)
+        return '|'.join(self.units_registry.all_units_as_regex_strings())
 
     @property
     def quantity_regex_raw_fmt(self):
