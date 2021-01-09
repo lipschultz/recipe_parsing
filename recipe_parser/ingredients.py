@@ -3,7 +3,7 @@ from typing import AnyStr, Optional, Union, Iterable
 
 import regex
 
-from recipe_parser.units import all_units
+from recipe_parser.units import american_units
 
 Number = Union[int, float]
 
@@ -266,7 +266,7 @@ class IngredientParser(BasicIngredientParser):
                  *,
                  approx_regex=r'(?:~|about|approx(?:\.|imately)?)',
                  amount_regex=r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+',
-                 units=tuple(all_units),
+                 units=tuple(american_units.all_units_as_regex_strings()),
                  plus_regex='|'.join([r'\+', 'and', 'plus', ',']),
                  dash_regex=r'(?:[-\u2012-\u2015\u2053~]|to)',
                  optional_regex=BasicIngredientParser.DEFAULT_OPTIONAL_REGEX,
