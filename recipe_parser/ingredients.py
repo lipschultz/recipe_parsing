@@ -165,6 +165,9 @@ class TotalQuantity:
     def __init__(self, quantities: Iterable[Quantity] = tuple()):
         self.quantities = [q for q in quantities if not q.is_empty()]
 
+    def __bool__(self):
+        return any(bool(q) for q in self.quantities)
+
     def __len__(self):
         return len(self.quantities)
 
@@ -185,30 +188,57 @@ NO_QUANTITY = Quantity(None, None)
 NO_TOTAL_QUANTITY = TotalQuantity()
 
 
+class QuantityRange:
+    def __init__(self,
+                 from_quantity: TotalQuantity = NO_TOTAL_QUANTITY,
+                 to_quantity: TotalQuantity = NO_TOTAL_QUANTITY,
+                 equivalent_to: Optional['QuantityRange'] = None,
+                 ):
+        self.from_quantity = from_quantity
+        self.to_quantity = to_quantity
+        self.equivalent_to = equivalent_to
+
+    def equals(self, other, compare_equivalent_to=False):
+        return isinstance(other, self.__class__) and self.from_quantity == other.from_quantity and self.to_quantity == other.to_quantity and (not compare_equivalent_to or self.equivalent_to == other.equivalent_to)
+
+    def __eq__(self, other):
+        return self.equals(other, True)
+
+    def __str__(self):
+        value = str(self.from_quantity)
+
+        value += f' - {self.to_quantity}'
+
+        value += f' ({self.equivalent_to})'
+
+        return value
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(from_quantity={self.from_quantity!r}, to_quantity={self.to_quantity!r}, ' \
+               f'equivalent_to={self.equivalent_to!r})'
+
+
+NO_QUANTITY_RANGE = QuantityRange()
+
+
 class Ingredient:
     def __init__(self,
                  name: AnyStr,
-                 quantity: TotalQuantity = NO_TOTAL_QUANTITY,
+                 quantity: QuantityRange = NO_QUANTITY_RANGE,
                  notes: Optional[AnyStr] = None,
                  optional: bool = False,
-                 to_quantity: TotalQuantity = NO_TOTAL_QUANTITY,
-                 equivalent_quantity: TotalQuantity = NO_TOTAL_QUANTITY,
                  ):
         self.name = name
         self.quantity = quantity
         self.notes = notes
         self.optional = optional
-        self.to_quantity = to_quantity
-        self.equivalent_quantity = equivalent_quantity
 
     def equals(self, other, compare_notes=True, compare_optional=True, compare_equivalent_quantity=False):
         return isinstance(other, self.__class__) and \
                self.name == other.name and \
-               self.quantity == other.quantity and \
+               self.quantity.equals(other, compare_equivalent_to=compare_equivalent_quantity) and \
                (not compare_notes or self.notes == other.notes) and \
-               (not compare_optional or self.optional == other.optional) and \
-               self.to_quantity == other.to_quantity and \
-               (not compare_equivalent_quantity or self.equivalent_quantity == other.equivalent_quantity)
+               (not compare_optional or self.optional == other.optional)
 
     def __eq__(self, other):
         return self.equals(other, True, True, True)
@@ -217,11 +247,6 @@ class Ingredient:
         ingredient = []
         if self.quantity:
             ingredient.append(str(self.quantity))
-            if self.to_quantity:
-                ingredient.extend(['-', str(self.to_quantity)])
-
-        if self.equivalent_quantity:
-            ingredient.append(f'({self.equivalent_quantity}')
 
         ingredient.append(self.name)
 
@@ -234,7 +259,7 @@ class Ingredient:
         return ' '.join(ingredient)
 
     def __repr__(self):
-        attribs = ['name', 'quantity', 'notes', 'optional', 'to_quantity', 'equivalent_quantity']
+        attribs = ['name', 'quantity', 'notes', 'optional']
         attrib_list = ', '.join(f'{attrib}={getattr(self, attrib)!r}' for attrib in attribs)
         return f'{self.__class__.__name__}({attrib_list})'
 
@@ -250,18 +275,15 @@ class BasicIngredientParser:
         optional = (text != deoptionalized_ingredient_line)
         text = deoptionalized_ingredient_line
 
-        quantity = NO_TOTAL_QUANTITY
-        to_quantity = NO_TOTAL_QUANTITY
+        quantity = NO_QUANTITY_RANGE
         name = text
-        equivalent_quantity = NO_TOTAL_QUANTITY
 
         if name.lower().startswith('of'):
             name = name[2:].lstrip()
 
         name, note = self.extract_note_from_name(name)
 
-        return Ingredient(name, quantity, note, optional, to_quantity=to_quantity,
-                          equivalent_quantity=equivalent_quantity)
+        return Ingredient(name, quantity, note, optional)
 
     def deoptionalize_ingredient_line(self, text) -> str:
         deoptionalized_ingredient_line = regex.sub(self.optional_regex, '', text, flags=re.IGNORECASE)
@@ -403,7 +425,12 @@ class IngredientParser(BasicIngredientParser):
             from_quantity[0].unit = to_quantity[0].unit
 
         equivalent_quantity = self.parse_quantity_total_match(res, f"{label}equivalent")
-        return from_quantity, to_quantity, equivalent_quantity
+        if equivalent_quantity:
+            # FIXME: this equivalent should be able to be a range
+            equivalent_quantity = QuantityRange(equivalent_quantity)
+        else:
+            equivalent_quantity = None
+        return QuantityRange(from_quantity, to_quantity, equivalent_quantity)
 
     @property
     def regex_raw_fmt(self):
@@ -424,7 +451,7 @@ class IngredientParser(BasicIngredientParser):
         return self.regex_fmt.format(label=label)
 
     def parse_match(self, res, label=''):
-        quantity, to_quantity, equivalent_quantity = self.parse_quantity_range_match(res, label=label)
+        quantity = self.parse_quantity_range_match(res, label=label)
 
         name = res.group('name')
         if name.lower().startswith('of'):
@@ -432,18 +459,17 @@ class IngredientParser(BasicIngredientParser):
 
         name, note = self.extract_note_from_name(name)
 
-        return quantity, to_quantity, equivalent_quantity, name, note
+        return quantity, name, note
 
     def parse(self, text):
         deoptionalized_ingredient_line = self.deoptionalize_ingredient_line(text)
         optional = (text != deoptionalized_ingredient_line)
         text = deoptionalized_ingredient_line
 
-        res = regex.match(fr'\s*{self.get_regex()}\s*', text, flags=re.IGNORECASE)
+        res = regex.fullmatch(fr'\s*{self.get_regex()}\s*', text, flags=re.IGNORECASE)
         if res:
-            quantity, to_quantity, equivalent_quantity, name, note = self.parse_match(res)
-            return Ingredient(name, quantity, note, optional, to_quantity=to_quantity,
-                              equivalent_quantity=equivalent_quantity)
+            quantity, name, note = self.parse_match(res)
+            return Ingredient(name, quantity, note, optional)
         else:
             return None
 
