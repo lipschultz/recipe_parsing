@@ -20,6 +20,12 @@ class Unit:
         attrs = ', '.join(f'{name}={getattr(self, name)!r}' for name in attr_names)
         return f'{self.__class__.__name__}({attrs})'
 
+    def __eq__(self, other):
+        if isinstance(other, Unit):
+            return all(representation in other for representation in self)
+        else:
+            return other in self
+
     def get_name_for(self, value):
         if value == 1 or self.plural_name is None:
             return self.name
@@ -117,7 +123,14 @@ class UnitsRegistry:
         return unit.replace(' ', r'\s+').replace('.', r'\.')
 
     def normalize_for_lookup(self, unit):
-        return regex.sub(r'\s+', ' ', unit)
+        if not isinstance(unit, str):
+            return unit
+        try:
+            return regex.sub(r'\s+', ' ', unit)
+        except TypeError as ex:
+            print(ex)
+            print('unit:', unit)
+            raise
 
     def all_units_as_strings(self) -> Iterable[str]:
         return itertools.chain.from_iterable(self.units)
@@ -144,7 +157,7 @@ class UnitsRegistry:
                 self._units_map.update(unit_map)
 
         item = self.normalize_for_lookup(item)
-        return self._units_map[item]
+        return self._units_map.get(item)
 
 
 american_units = UnitsRegistry(_all_units)

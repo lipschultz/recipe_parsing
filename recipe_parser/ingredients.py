@@ -3,7 +3,7 @@ from typing import AnyStr, Optional, Union, Iterable
 
 import regex
 
-from recipe_parser.units import american_units, UnitsRegistry
+from recipe_parser.units import american_units, UnitsRegistry, Unit
 
 Number = Union[int, float]
 
@@ -67,10 +67,17 @@ def to_number(value: str) -> Optional[Number]:
 
 
 class Quantity:
-    def __init__(self, amount: Optional[Number], unit: Optional[AnyStr], approximate: bool = False):
+    def __init__(self, amount: Optional[Number], unit: Union[None, AnyStr, Unit], approximate: bool = False):
         self.amount = amount
-        self.unit = unit
+        self.raw_unit = unit
         self.approximate = approximate
+
+    @property
+    def unit(self):
+        if isinstance(self.raw_unit, Unit):
+            return self.raw_unit.name
+        else:
+            return self.raw_unit
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -83,7 +90,7 @@ class Quantity:
             return self.unit == other.unit
 
     def __bool__(self):
-        return bool(self.amount or self.unit)
+        return bool(self.amount or self.raw_unit)
 
     def is_empty(self):
         return not bool(self)
@@ -92,7 +99,7 @@ class Quantity:
         return f'{"~" if self.approximate else ""}{self.amount} {self.unit}'
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.amount!r}, {self.unit!r}, approximate={self.approximate!r})'
+        return f'{self.__class__.__name__}({self.amount!r}, {self.raw_unit!r}, approximate={self.approximate!r})'
 
 
 class TotalQuantity:
@@ -299,7 +306,8 @@ class IngredientParser(BasicIngredientParser):
         return self.quantity_regex_fmt.format(label=label)
 
     def parse_quantity_match(self, res, label) -> Quantity:
-        return Quantity(to_number(res.group(f'amount{label}')), res.group(f'unit{label}'), bool(res.group(f'approx{label}')))
+        unit = res.group(f'unit{label}')
+        return Quantity(to_number(res.group(f'amount{label}')), self.units_registry[unit], bool(res.group(f'approx{label}')))
 
     @property
     def quantity_total_regex_raw_fmt(self):
@@ -353,7 +361,7 @@ class IngredientParser(BasicIngredientParser):
         to_quantity = self.parse_quantity_total_match(res, f"{label}to")
 
         if len(from_quantity) and from_quantity[0].unit is None and len(to_quantity):
-            from_quantity[0].unit = to_quantity[0].unit
+            from_quantity[0].raw_unit = to_quantity[0].raw_unit
 
         equivalent_quantity = self.parse_quantity_total_match(res, f"{label}equivalent")
         if equivalent_quantity:

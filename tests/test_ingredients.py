@@ -1,6 +1,6 @@
 import pytest
 
-from recipe_parser import ingredients
+from recipe_parser import ingredients, units
 
 
 @pytest.mark.parametrize("str_num, expected_num", [
@@ -33,11 +33,22 @@ def test_converts_string_to_number(str_num, expected_num):
     assert ingredients.to_number(str_num) == expected_num
 
 
+def assert_unit_equal(expected, actual, check_type=True):
+    assert not check_type or isinstance(actual, type(expected))
+
+    if isinstance(actual, units.Unit):
+        assert actual == expected
+    elif isinstance(expected, units.Unit):
+        assert expected == actual
+    else:
+        assert expected == actual
+
+
 def assert_quantity_equal(expected, actual, test_approximate=True):
     assert isinstance(actual, ingredients.Quantity)
 
     assert expected.amount == actual.amount
-    assert expected.unit == actual.unit
+    assert_unit_equal(expected.raw_unit, actual.raw_unit)
     if test_approximate and expected.amount is not None:
         assert expected.approximate == actual.approximate
 
@@ -75,7 +86,7 @@ def make_ingredient(expected_info):
         from_quantity=ingredients.TotalQuantity([
             ingredients.Quantity(
                 abs(quant[0]) if quant[0] else None,
-                quant[1],
+                units.american_units[quant[1]],
                 approximate=(quant[0] is not None and quant[0] < 0)
             )
             for quant in expected_info[1].get('from', [])
@@ -83,7 +94,7 @@ def make_ingredient(expected_info):
         to_quantity=ingredients.TotalQuantity([
             ingredients.Quantity(
                 abs(quant[0]) if quant[0] else None,
-                quant[1],
+                units.american_units[quant[1]],
                 approximate=(quant[0] is not None and quant[0] < 0)
             )
             for quant in expected_info[1].get('to', [])
@@ -92,7 +103,7 @@ def make_ingredient(expected_info):
             from_quantity=ingredients.TotalQuantity([
                 ingredients.Quantity(
                     abs(quant[0]) if quant[0] else None,
-                    quant[1],
+                    units.american_units[quant[1]],
                     approximate=(quant[0] is not None and quant[0] < 0)
                 )
                 for quant in expected_info[1]['equiv']
