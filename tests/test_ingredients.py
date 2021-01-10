@@ -122,6 +122,9 @@ def make_ingredient(expected_info):
 @pytest.mark.parametrize("ingredient_line, expected_result", [
     # Amount unit name
     ('2 tbsp chili powder', ('chili powder', {'from': [(2, 'tbsp')]})),
+    ('2 Tbsp chili powder', ('chili powder', {'from': [(2, 'tbsp')]})),
+    ('2 Tbsp. chili powder', ('chili powder', {'from': [(2, 'tbsp')]})),
+    ('2 tbsp. chili powder', ('chili powder', {'from': [(2, 'tbsp')]})),
     ('2tbsp chili powder', ('chili powder', {'from': [(2, 'tbsp')]})),
     ('200 grams flour', ('flour', {'from': [(200, 'grams')]})),
     ('½ teaspoons chili powder', ('chili powder', {'from': [(0.5, 'teaspoons')]})),

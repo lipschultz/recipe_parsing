@@ -157,7 +157,11 @@ class UnitsRegistry:
                 self._units_map.update(unit_map)
 
         item = self.normalize_for_lookup(item)
-        return self._units_map.get(item)
+        if item is None:
+            return None
+
+        # First, case-sensitive search, then case-insensitive search in case of non-standard capitalization
+        return self._units_map.get(item, self._units_map.get(item.lower()))
 
 
 american_units = UnitsRegistry(_all_units)
