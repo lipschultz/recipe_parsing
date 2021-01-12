@@ -285,6 +285,8 @@ def test_parses_ingredient_line_with_equivalent_quantity(ingredient_line, expect
     ('approx 1 cup canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(-1, 'cup')]})),
     ('approx. 1 cup canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(-1, 'cup')]})),
     ('approximately 1 cup canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(-1, 'cup')]})),
+    ('1 cup +/- canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(-1, 'cup')]})),
+    ('1 cup (+/-) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(-1, 'cup')]})),
 
     # Range
     ('~2~3 tbsp chili powder', ('chili powder', {'from': [(-2, 'tbsp')], 'to': [(3, 'tbsp')]})),

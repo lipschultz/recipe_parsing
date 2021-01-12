@@ -271,17 +271,19 @@ class BasicIngredientParser:
 class IngredientParser(BasicIngredientParser):
     def __init__(self,
                  *,
-                 approx_regex=r'(?:~|about|approx(?:\.|imately)?)',
+                 approx_regex_pre_amount=r'(?:~|about|approx(?:\.|imately)?)',
                  amount_regex=r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+',
                  units_registry: UnitsRegistry = american_units,
+                 approx_regex_post_unit=r'(:?\(?\+/-\)?)',
                  plus_regex='|'.join([r'\+', 'and', 'plus', ',']),
                  dash_regex=r'(?:[-\u2012-\u2015\u2053~]|to)',
                  optional_regex=BasicIngredientParser.DEFAULT_OPTIONAL_REGEX,
                  ):
         super().__init__(optional_regex=optional_regex)
-        self.approx_regex = approx_regex
+        self.approx_regex_pre_amount = approx_regex_pre_amount
         self.amount_regex = amount_regex
         self.units_registry = units_registry
+        self.approx_regex_post_unit = approx_regex_post_unit
         self.plus_regex = plus_regex
         self.dash_regex = dash_regex
 
@@ -291,15 +293,16 @@ class IngredientParser(BasicIngredientParser):
 
     @property
     def quantity_regex_raw_fmt(self):
-        return r'(?P<approx{label}>{approx_regex})?\s*(?P<amount{label}>{amount_regex})?\s*(?P<unit{label}>{unit_regex})?\.?'
+        return r'(?P<approxPreAmount{label}>{approx_regex_pre_amount})?\s*(?P<amount{label}>{amount_regex})?\s*(?P<unit{label}>{unit_regex})?\.?\s*(?P<approxPostUnit{label}>{approx_regex_post_unit})?'
 
     @property
     def quantity_regex_fmt(self):
         return self.partial_format(
             self.quantity_regex_raw_fmt,
-            approx_regex=self.approx_regex,
+            approx_regex_pre_amount=self.approx_regex_pre_amount,
             amount_regex=self.amount_regex,
             unit_regex=self.units_regex,
+            approx_regex_post_unit=self.approx_regex_post_unit,
         )
 
     def get_quantity_regex(self, label):
@@ -307,7 +310,8 @@ class IngredientParser(BasicIngredientParser):
 
     def parse_quantity_match(self, res, label) -> Quantity:
         unit = res.group(f'unit{label}')
-        return Quantity(to_number(res.group(f'amount{label}')), self.units_registry[unit], bool(res.group(f'approx{label}')))
+        approximate = bool(res.group(f'approxPreAmount{label}')) or bool(res.group(f'approxPostUnit{label}'))
+        return Quantity(to_number(res.group(f'amount{label}')), self.units_registry[unit], approximate)
 
     @property
     def quantity_total_regex_raw_fmt(self):
@@ -318,9 +322,10 @@ class IngredientParser(BasicIngredientParser):
     def quantity_total_regex_fmt(self):
         return self.partial_format(
             self.quantity_total_regex_raw_fmt,
-            approx_regex=self.approx_regex,
+            approx_regex_pre_amount=self.approx_regex_pre_amount,
             amount_regex=self.amount_regex,
             unit_regex=self.units_regex,
+            approx_regex_post_unit=self.approx_regex_post_unit,
             plus_regex=self.plus_regex,
         )
 
@@ -346,9 +351,10 @@ class IngredientParser(BasicIngredientParser):
     def quantity_range_regex_fmt(self):
         return self.partial_format(
             self.quantity_range_regex_raw_fmt,
-            approx_regex=self.approx_regex,
+            approx_regex_pre_amount=self.approx_regex_pre_amount,
             amount_regex=self.amount_regex,
             unit_regex=self.units_regex,
+            approx_regex_post_unit=self.approx_regex_post_unit,
             plus_regex=self.plus_regex,
             dash_regex=self.dash_regex,
         )
@@ -379,9 +385,10 @@ class IngredientParser(BasicIngredientParser):
     def regex_fmt(self):
         return self.partial_format(
             self.regex_raw_fmt,
-            approx_regex=self.approx_regex,
+            approx_regex_pre_amount=self.approx_regex_pre_amount,
             amount_regex=self.amount_regex,
             unit_regex=self.units_regex,
+            approx_regex_post_unit=self.approx_regex_post_unit,
             plus_regex=self.plus_regex,
             dash_regex=self.dash_regex,
         )

@@ -1,5 +1,5 @@
 import itertools
-from typing import Iterable
+from typing import Iterable, Optional
 
 import regex
 
@@ -138,7 +138,7 @@ class UnitsRegistry:
     def all_units_as_regex_strings(self) -> Iterable[str]:
         return (self.transform_for_regex(unit) for unit in self.all_units_as_strings())
 
-    def __getitem__(self, item) -> Unit:
+    def __getitem__(self, item) -> Optional[Unit]:
         if self._units_map is None:
             self._units_map = {}
             for unit in self.units:
