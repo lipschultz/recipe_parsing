@@ -133,39 +133,62 @@ class QuantityRange:
     def __init__(self,
                  from_quantity: TotalQuantity = NO_TOTAL_QUANTITY,
                  to_quantity: TotalQuantity = NO_TOTAL_QUANTITY,
-                 equivalent_to: Optional['QuantityRange'] = None,
                  ):
         self.from_quantity = from_quantity
         self.to_quantity = to_quantity
-        self.equivalent_to = equivalent_to
 
-    def equals(self, other, compare_equivalent_to=False):
-        return isinstance(other, self.__class__) and self.from_quantity == other.from_quantity and self.to_quantity == other.to_quantity and (not compare_equivalent_to or self.equivalent_to == other.equivalent_to)
+    def equals(self, other):
+        return isinstance(other, self.__class__) and self.from_quantity == other.from_quantity and self.to_quantity == other.to_quantity
 
     def __eq__(self, other):
-        return self.equals(other, True)
+        return self.equals(other)
 
     def __str__(self):
         value = str(self.from_quantity)
 
         value += f' - {self.to_quantity}'
 
-        value += f' ({self.equivalent_to})'
-
         return value
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(from_quantity={self.from_quantity!r}, to_quantity={self.to_quantity!r}, ' \
-               f'equivalent_to={self.equivalent_to!r})'
+        return f'{self.__class__.__name__}(from_quantity={self.from_quantity!r}, to_quantity={self.to_quantity!r})'
 
 
 NO_QUANTITY_RANGE = QuantityRange()
 
 
+class CompleteQuantity:
+    def __init__(self, primary_quantity: QuantityRange = NO_QUANTITY_RANGE, equivalent_quantities: Iterable[QuantityRange] = ()):
+        self.primary_quantity = primary_quantity
+        self.equivalent_quantities = list(equivalent_quantities)
+
+    def equals(self, other, compare_equivalent_to=False):
+        return isinstance(other, self.__class__) and \
+               self.primary_quantity == other.primary_quantity and \
+               (not compare_equivalent_to or set(self.equivalent_quantities) == set(other.equivalent_quantities))
+
+    def __eq__(self, other):
+        return self.equals(other, True)
+
+    def __str__(self):
+        value = str(self.primary_quantity)
+
+        if self.equivalent_quantities:
+            value += f' {tuple(self.equivalent_quantities)!s}'
+
+        return value
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(primary_quantity={self.primary_quantity!r}, equivalent_quantities={self.equivalent_quantities!r})'
+
+
+NO_COMPLETE_QUANTITY = CompleteQuantity()
+
+
 class Ingredient:
     def __init__(self,
                  name: AnyStr,
-                 quantity: QuantityRange = NO_QUANTITY_RANGE,
+                 quantity: CompleteQuantity = NO_COMPLETE_QUANTITY,
                  notes: Optional[AnyStr] = None,
                  optional: bool = False,
                  ):
@@ -216,7 +239,7 @@ class BasicIngredientParser:
         optional = (text != deoptionalized_ingredient_line)
         text = deoptionalized_ingredient_line
 
-        quantity = NO_QUANTITY_RANGE
+        quantity = NO_COMPLETE_QUANTITY
         name = text
 
         if name.lower().startswith('of'):
@@ -369,13 +392,16 @@ class IngredientParser(BasicIngredientParser):
         if len(from_quantity) and from_quantity[0].unit is None and len(to_quantity):
             from_quantity[0].raw_unit = to_quantity[0].raw_unit
 
+        quantity_range = QuantityRange(from_quantity, to_quantity)
+
         equivalent_quantity = self.parse_quantity_total_match(res, f"{label}equivalent")
         if equivalent_quantity:
             # FIXME: this equivalent should be able to be a range
-            equivalent_quantity = QuantityRange(equivalent_quantity)
+            equivalent_quantity = [QuantityRange(equivalent_quantity)]
         else:
-            equivalent_quantity = None
-        return QuantityRange(from_quantity, to_quantity, equivalent_quantity)
+            equivalent_quantity = []
+        complete_quantity = CompleteQuantity(quantity_range, equivalent_quantity)
+        return complete_quantity
 
     @property
     def regex_raw_fmt(self):

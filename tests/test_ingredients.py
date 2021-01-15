@@ -69,47 +69,68 @@ def assert_quantity_range_equal(expected, actual):
 
         assert_total_quantity_equal(expected.from_quantity, actual.from_quantity)
         assert_total_quantity_equal(expected.to_quantity, actual.to_quantity)
-        assert_quantity_range_equal(expected.equivalent_to, actual.equivalent_to)
+
+
+def assert_complete_quantity_equal(expected, actual):
+    assert isinstance(actual, ingredients.CompleteQuantity)
+
+    assert_quantity_range_equal(expected.primary_quantity, actual.primary_quantity)
+
+    assert len(expected.equivalent_quantities) == len(actual.equivalent_quantities)
+    for expected_equivalent, actual_equivalent in zip(expected.equivalent_quantities, actual.equivalent_quantities):
+        assert_quantity_range_equal(expected_equivalent, actual_equivalent)
 
 
 def assert_ingredient_equal(expected, actual):
     assert isinstance(actual, ingredients.Ingredient)
 
-    assert_quantity_range_equal(expected.quantity, actual.quantity)
+    assert_complete_quantity_equal(expected.quantity, actual.quantity)
     assert expected.name == actual.name
     assert expected.notes == actual.notes
     assert expected.optional == actual.optional
 
 
 def make_ingredient(expected_info):
-    expected_quantity = ingredients.QuantityRange(
-        from_quantity=ingredients.TotalQuantity([
-            ingredients.Quantity(
-                abs(quant[0]) if quant[0] else None,
-                units.american_units[quant[1]],
-                approximate=(quant[0] is not None and quant[0] < 0)
-            )
-            for quant in expected_info[1].get('from', [])
-        ]),
-        to_quantity=ingredients.TotalQuantity([
-            ingredients.Quantity(
-                abs(quant[0]) if quant[0] else None,
-                units.american_units[quant[1]],
-                approximate=(quant[0] is not None and quant[0] < 0)
-            )
-            for quant in expected_info[1].get('to', [])
-        ]),
-        equivalent_to=ingredients.QuantityRange(
+    expected_quantity = ingredients.CompleteQuantity(
+        primary_quantity=ingredients.QuantityRange(
             from_quantity=ingredients.TotalQuantity([
                 ingredients.Quantity(
                     abs(quant[0]) if quant[0] else None,
                     units.american_units[quant[1]],
                     approximate=(quant[0] is not None and quant[0] < 0)
                 )
-                for quant in expected_info[1]['equiv']
+                for quant in expected_info[1].get('from', [])
             ]),
-        )
-        if 'equiv' in expected_info[1] else None
+            to_quantity=ingredients.TotalQuantity([
+                ingredients.Quantity(
+                    abs(quant[0]) if quant[0] else None,
+                    units.american_units[quant[1]],
+                    approximate=(quant[0] is not None and quant[0] < 0)
+                )
+                for quant in expected_info[1].get('to', [])
+            ])
+        ),
+        equivalent_quantities=[
+            ingredients.QuantityRange(
+                from_quantity=ingredients.TotalQuantity([
+                    ingredients.Quantity(
+                        abs(quant[0]) if quant[0] else None,
+                        units.american_units[quant[1]],
+                        approximate=(quant[0] is not None and quant[0] < 0)
+                    )
+                    for quant in equiv.get('from', [])
+                ]),
+                to_quantity=ingredients.TotalQuantity([
+                    ingredients.Quantity(
+                        abs(quant[0]) if quant[0] else None,
+                        units.american_units[quant[1]],
+                        approximate=(quant[0] is not None and quant[0] < 0)
+                    )
+                    for quant in equiv.get('to', [])
+                ])
+            )
+            for equiv in expected_info[1].get('equiv', [])
+        ]
     )
     return ingredients.Ingredient(
         expected_info[0],
@@ -259,15 +280,15 @@ def test_parses_amount_range(ingredient_line, expected_result):
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [
-    ('1 cup (240 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1, 'cup')], 'equiv': [(240, 'mL')]})),
-    ('1 1/4 cup (295 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1.25, 'cup')], 'equiv': [(295, 'mL')]})),
-    ('1 ¼ cup (295 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1.25, 'cup')], 'equiv': [(295, 'mL')]})),
-    ('1¼ cup (295 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1.25, 'cup')], 'equiv': [(295, 'mL')]})),
+    ('1 cup (240 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1, 'cup')], 'equiv': [{'from': [(240, 'mL')]}]})),
+    ('1 1/4 cup (295 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1.25, 'cup')], 'equiv': [{'from': [(295, 'mL')]}]})),
+    ('1 ¼ cup (295 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1.25, 'cup')], 'equiv': [{'from': [(295, 'mL')]}]})),
+    ('1¼ cup (295 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1.25, 'cup')], 'equiv': [{'from': [(295, 'mL')]}]})),
 
-    ('240 mL (1 cup) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(240, 'mL')], 'equiv': [(1, 'cup')]})),
-    ('295 mL (1 1/4 cup) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(295, 'mL')], 'equiv': [(1.25, 'cup')]})),
-    ('295 mL (1 ¼ cup) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(295, 'mL')], 'equiv': [(1.25, 'cup')]})),
-    ('295 mL (1¼ cup) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(295, 'mL')], 'equiv': [(1.25, 'cup')]})),
+    ('240 mL (1 cup) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(240, 'mL')], 'equiv': [{'from': [(1, 'cup')]}]})),
+    ('295 mL (1 1/4 cup) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(295, 'mL')], 'equiv': [{'from': [(1.25, 'cup')]}]})),
+    ('295 mL (1 ¼ cup) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(295, 'mL')], 'equiv': [{'from': [(1.25, 'cup')]}]})),
+    ('295 mL (1¼ cup) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(295, 'mL')], 'equiv': [{'from': [(1.25, 'cup')]}]})),
 ])
 def test_parses_ingredient_line_with_equivalent_quantity(ingredient_line, expected_result):
     actual = ingredients.parse_ingredient_line(ingredient_line)
@@ -276,9 +297,9 @@ def test_parses_ingredient_line_with_equivalent_quantity(ingredient_line, expect
 
 
 @pytest.mark.parametrize("ingredient_line, expected_result", [
-    ('1 cup (~240 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1, 'cup')], 'equiv': [(-240, 'mL')]})),
-    ('~1 cup (240 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(-1, 'cup')], 'equiv': [(240, 'mL')]})),
-    ('~1 cup (~240 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(-1, 'cup')], 'equiv': [(-240, 'mL')]})),
+    ('1 cup (~240 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1, 'cup')], 'equiv': [{'from': [(-240, 'mL')]}]})),
+    ('~1 cup (240 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(-1, 'cup')], 'equiv': [{'from': [(240, 'mL')]}]})),
+    ('~1 cup (~240 mL) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(-1, 'cup')], 'equiv': [{'from': [(-240, 'mL')]}]})),
 
     # Other ways of indicating approximately
     ('about 1 cup canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(-1, 'cup')]})),
@@ -309,7 +330,7 @@ def test_parses_ingredient_line_with_approximate_quantity(ingredient_line, expec
     ('1 cup, 2 tbsp canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1, 'cup'), (2, 'tbsp')]})),
 
     # Equivalent
-    ('1 cup + ~2 tbsp + 1 tsp (6 oz) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1, 'cup'), (-2, 'tbsp'), (1, 'tsp')], 'equiv': [(6, 'oz')]})),
+    ('1 cup + ~2 tbsp + 1 tsp (6 oz) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1, 'cup'), (-2, 'tbsp'), (1, 'tsp')], 'equiv': [{'from': [(6, 'oz')]}]})),
 
     # Range
     ('1 cup + ~2 tbsp + 1 tsp - 1 1/4 cup canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1, 'cup'), (-2, 'tbsp'), (1, 'tsp')], 'to': [(1.25, 'cup')]})),
@@ -317,7 +338,7 @@ def test_parses_ingredient_line_with_approximate_quantity(ingredient_line, expec
     ('1 cup + ~2 tbsp + 1 tsp ~ 1 cup + 3 tbsp canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1, 'cup'), (-2, 'tbsp'), (1, 'tsp')], 'to': [(1, 'cup'), (3, 'tbsp')]})),
 
     # Range with equivalent
-    ('1 cup + ~2 tbsp + 1 tsp - 1 cup + 3 tbsp (14.5 oz) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1, 'cup'), (-2, 'tbsp'), (1, 'tsp')], 'to': [(1, 'cup'), (3, 'tbsp')], 'equiv': [(14.5, 'oz')]})),
+    ('1 cup + ~2 tbsp + 1 tsp - 1 cup + 3 tbsp (14.5 oz) canola or other vegetable oil', ('canola or other vegetable oil', {'from': [(1, 'cup'), (-2, 'tbsp'), (1, 'tsp')], 'to': [(1, 'cup'), (3, 'tbsp')], 'equiv': [{'from': [(14.5, 'oz')]}]})),
 ])
 def test_parses_ingredient_line_where_ingredient_has_multiple_amount_values(ingredient_line, expected_result):
     actual = ingredients.parse_ingredient_line(ingredient_line)
