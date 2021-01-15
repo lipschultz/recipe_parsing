@@ -346,6 +346,17 @@ def test_parses_ingredient_line_where_ingredient_has_multiple_amount_values(ingr
     assert_ingredient_equal(expected, actual)
 
 
+@pytest.mark.parametrize("ingredient_line, expected_result", [
+    ('a cup of water', ('water', {'from': [(1, 'cup')]})),
+    ('about a cup of water', ('water', {'from': [(-1, 'cup')]})),
+    ('a pinch of salt', ('salt', {'from': [(1, 'pinch')]})),
+])
+def test_parses_ingredient_line_where_quantity_amount_is_words(ingredient_line, expected_result):
+    actual = ingredients.parse_ingredient_line(ingredient_line)
+    expected = make_ingredient(expected_result)
+    assert_ingredient_equal(expected, actual)
+
+
 """
 Additional cases:
 equivalences:
@@ -366,6 +377,4 @@ unit size:
     Scant 1/4 cup white candy coating, such as Wilton Candy Melts
     a scant 1/2 teaspoon crumbled dried sage
     1 scant Tbsp. lemon juice
-    a pinch of salt
-    a cup of water
 """

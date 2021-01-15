@@ -89,6 +89,7 @@ _units_amounts = [
     Unit('package', 'pkg', 'packages', 'pkgs'),
     Unit('pie', None, 'pies'),
     Unit('piece', None, 'pieces'),
+    Unit('pinch', None, 'pinches'),
     Unit('roll', None, 'rolls'),
     Unit('serving', None, 'servings'),
     Unit('slice', None, 'slices'),

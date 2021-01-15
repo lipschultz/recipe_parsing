@@ -295,7 +295,7 @@ class IngredientParser(BasicIngredientParser):
     def __init__(self,
                  *,
                  approx_regex_pre_amount=r'(?:~|about|approx(?:\.|imately)?)',
-                 amount_regex=r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+',
+                 amount_regex=r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+|a',
                  units_registry: UnitsRegistry = american_units,
                  approx_regex_post_unit=r'(:?\(?\+/-\)?)',
                  plus_regex='|'.join([r'\+', 'and', 'plus', ',']),
@@ -334,7 +334,11 @@ class IngredientParser(BasicIngredientParser):
     def parse_quantity_match(self, res, label) -> Quantity:
         unit = res.group(f'unit{label}')
         approximate = bool(res.group(f'approxPreAmount{label}')) or bool(res.group(f'approxPostUnit{label}'))
-        return Quantity(to_number(res.group(f'amount{label}')), self.units_registry[unit], approximate)
+        amount = res.group(f'amount{label}')
+        if isinstance(amount, str) and amount.lower() == 'a':
+            amount = 1
+
+        return Quantity(to_number(amount), self.units_registry[unit], approximate)
 
     @property
     def quantity_total_regex_raw_fmt(self):
