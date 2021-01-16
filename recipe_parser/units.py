@@ -77,6 +77,7 @@ _units_length = [
 ]
 
 _units_amounts = [
+    Unit('bag', None, 'bags'),
     Unit('ball', None, 'balls'),
     Unit('block', None, 'blocks'),
     Unit('box', None, 'boxes'),
