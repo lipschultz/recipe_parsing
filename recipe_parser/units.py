@@ -26,6 +26,9 @@ class Unit:
         else:
             return other in self
 
+    def __bool__(self):
+        return any(self)
+
     def get_name_for(self, value):
         if value == 1 or self.plural_name is None:
             return self.name
