@@ -1,7 +1,7 @@
 import unicodedata
 from typing import AnyStr, Optional, Union, Iterable
 
-from recipe_parser.units import Unit
+from recipe_parser.units import Unit, NO_UNIT
 
 Number = Union[int, float]
 
@@ -64,18 +64,49 @@ def to_number(value: str) -> Optional[Number]:
             return accumulated_value
 
 
-class Quantity:
-    def __init__(self, amount: Optional[Number], unit: Union[None, AnyStr, Unit], approximate: bool = False):
-        self.amount = amount
-        self.raw_unit = unit
-        self.approximate = approximate
+class QuantityUnit:
+    def __init__(self, unit, modifier=None):
+        self.unit = unit
+        self.modifier = modifier
 
-    @property
-    def unit(self):
-        if isinstance(self.raw_unit, Unit):
-            return self.raw_unit.name
+    @classmethod
+    def to_quantity_unit(cls, value):
+        if isinstance(value, QuantityUnit):
+            return value
+        elif isinstance(value, Unit):
+            return cls(value)
+        elif isinstance(value, str):
+            return cls(Unit(value, None))
+        elif value is None:
+            return cls(NO_UNIT)
         else:
-            return self.raw_unit
+            raise TypeError(f'Cannot convert to QuantityUnit, unrecognized type: {type(value)}')
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.unit == other.unit and self.modifier == other.modifier
+
+    def __bool__(self):
+        return bool(self.unit)
+
+    def __str__(self):
+        value = ''
+        if self.modifier is not None:
+            value += f'{self.modifier} '
+
+        return value + str(self.unit)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(unit={self.unit!r}, modifier={self.modifier!r})'
+
+
+NO_QUANTITY_UNIT = QuantityUnit(None)
+
+
+class Quantity:
+    def __init__(self, amount: Optional[Number], unit: Optional[QuantityUnit], approximate: bool = False):
+        self.amount = amount
+        self.unit = QuantityUnit.to_quantity_unit(unit)
+        self.approximate = approximate
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -88,7 +119,7 @@ class Quantity:
             return self.unit == other.unit
 
     def __bool__(self):
-        return bool(self.amount or self.raw_unit)
+        return bool(self.amount or self.unit)
 
     def is_empty(self):
         return not bool(self)
@@ -97,7 +128,7 @@ class Quantity:
         return f'{"~" if self.approximate else ""}{self.amount} {self.unit}'
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.amount!r}, {self.raw_unit!r}, approximate={self.approximate!r})'
+        return f'{self.__class__.__name__}({self.amount!r}, {self.unit!r}, approximate={self.approximate!r})'
 
 
 class TotalQuantity:

@@ -1,6 +1,6 @@
 import pytest
 
-from recipe_parser import ingredients, units
+from recipe_parser import ingredients, units, quantity
 
 
 @pytest.mark.parametrize("str_num, expected_num", [
@@ -33,22 +33,23 @@ def test_converts_string_to_number(str_num, expected_num):
     assert ingredients.to_number(str_num) == expected_num
 
 
-def assert_unit_equal(expected, actual, check_type=True):
-    assert not check_type or isinstance(actual, type(expected))
+def assert_unit_equal(expected, actual):
+    assert isinstance(actual, units.Unit)
 
-    if isinstance(actual, units.Unit):
-        assert actual == expected
-    elif isinstance(expected, units.Unit):
-        assert expected == actual
-    else:
-        assert expected == actual
+    assert expected == actual
+
+
+def assert_quantity_unit_equal(expected, actual):
+    assert isinstance(actual, quantity.QuantityUnit)
+    assert_unit_equal(expected.unit, actual.unit)
+    assert expected.modifier == actual.modifier
 
 
 def assert_quantity_equal(expected, actual, test_approximate=True):
     assert isinstance(actual, ingredients.Quantity)
 
     assert expected.amount == actual.amount
-    assert_unit_equal(expected.raw_unit, actual.raw_unit)
+    assert_quantity_unit_equal(expected.unit, actual.unit)
     if test_approximate and expected.amount is not None:
         assert expected.approximate == actual.approximate
 
@@ -90,44 +91,27 @@ def assert_ingredient_equal(expected, actual):
     assert expected.optional == actual.optional
 
 
+def make_total_quantity(quantities):
+    return ingredients.TotalQuantity([
+        ingredients.Quantity(
+            abs(quant[0]) if quant[0] else None,
+            quantity.QuantityUnit(units.american_units[quant[1]]) if quant[1] is not None else units.NO_UNIT,
+            approximate=(quant[0] is not None and quant[0] < 0)
+        )
+        for quant in quantities
+    ])
+
+
 def make_ingredient(expected_info):
     expected_quantity = ingredients.CompleteQuantity(
         primary_quantity=ingredients.QuantityRange(
-            from_quantity=ingredients.TotalQuantity([
-                ingredients.Quantity(
-                    abs(quant[0]) if quant[0] else None,
-                    units.american_units[quant[1]],
-                    approximate=(quant[0] is not None and quant[0] < 0)
-                )
-                for quant in expected_info[1].get('from', [])
-            ]),
-            to_quantity=ingredients.TotalQuantity([
-                ingredients.Quantity(
-                    abs(quant[0]) if quant[0] else None,
-                    units.american_units[quant[1]],
-                    approximate=(quant[0] is not None and quant[0] < 0)
-                )
-                for quant in expected_info[1].get('to', [])
-            ])
+            from_quantity=make_total_quantity(expected_info[1].get('from', [])),
+            to_quantity=make_total_quantity(expected_info[1].get('to', []))
         ),
         equivalent_quantities=[
             ingredients.QuantityRange(
-                from_quantity=ingredients.TotalQuantity([
-                    ingredients.Quantity(
-                        abs(quant[0]) if quant[0] else None,
-                        units.american_units[quant[1]],
-                        approximate=(quant[0] is not None and quant[0] < 0)
-                    )
-                    for quant in equiv.get('from', [])
-                ]),
-                to_quantity=ingredients.TotalQuantity([
-                    ingredients.Quantity(
-                        abs(quant[0]) if quant[0] else None,
-                        units.american_units[quant[1]],
-                        approximate=(quant[0] is not None and quant[0] < 0)
-                    )
-                    for quant in equiv.get('to', [])
-                ])
+                from_quantity=make_total_quantity(equiv.get('from', [])),
+                to_quantity=make_total_quantity(equiv.get('to', []))
             )
             for equiv in expected_info[1].get('equiv', [])
         ]

@@ -158,6 +158,7 @@ class IngredientParser(BasicIngredientParser):
         approximate = bool(res.group(f'approxPreAmount{label}')) or bool(res.group(f'approxPostUnit{label}'))
         amount = res.group(f'amount{label}')
         if isinstance(amount, str) and amount.lower() == 'a':
+            # FIXME: This shouldn't be hard-coded -- maybe make a dictionary of regex -> value in __init__?
             amount = 1
 
         return Quantity(to_number(amount), self.units_registry[unit], approximate)
@@ -216,8 +217,8 @@ class IngredientParser(BasicIngredientParser):
         from_quantity = self.parse_quantity_total_match(res, f"{label}from")
         to_quantity = self.parse_quantity_total_match(res, f"{label}to")
 
-        if len(from_quantity) and from_quantity[0].unit is None and len(to_quantity):
-            from_quantity[0].raw_unit = to_quantity[0].raw_unit
+        if len(from_quantity) and not from_quantity[0].unit and len(to_quantity):
+            from_quantity[0].unit = to_quantity[0].unit
 
         quantity_range = QuantityRange(from_quantity, to_quantity)
 

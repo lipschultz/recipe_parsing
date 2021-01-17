@@ -49,6 +49,9 @@ class Unit:
         )
 
 
+NO_UNIT = Unit(None, None)
+
+
 _units_weights = [
     Unit('pound', 'lb', 'pounds', 'lbs'),
     Unit('ounce', 'oz', 'ounces'),
