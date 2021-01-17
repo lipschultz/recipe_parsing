@@ -95,7 +95,10 @@ def make_total_quantity(quantities):
     return ingredients.TotalQuantity([
         ingredients.Quantity(
             abs(quant[0]) if quant[0] else None,
-            quantity.QuantityUnit(units.american_units[quant[1]]) if quant[1] is not None else units.NO_UNIT,
+            quantity.QuantityUnit(
+                units.american_units[quant[1]] or units.NO_UNIT,
+                quant[2] if len(quant) > 2 else None
+            ),
             approximate=(quant[0] is not None and quant[0] < 0)
         )
         for quant in quantities
@@ -341,6 +344,19 @@ def test_parses_ingredient_line_where_quantity_amount_is_words(ingredient_line, 
     assert_ingredient_equal(expected, actual)
 
 
+@pytest.mark.parametrize("ingredient_line, expected_result", [
+    ('1 scant Tbsp. lemon juice', ('lemon juice', {'from': [(1, 'tbsp', 'scant')]})),
+    ('2 rounded Tbsp. cornstarch', ('cornstarch', {'from': [(2, 'tbsp', 'rounded')]})),
+    ('1 heaping tablespoon of red pepper flakes', ('red pepper flakes', {'from': [(1, 'tbsp', 'heaping')]})),
+    ('2 large bags of chocolate chips', ('chocolate chips', {'from': [(2, 'bag', 'large')]})),
+    ('2 large eggs', ('eggs', {'from': [(2, None, 'large')]})),
+])
+def test_parses_ingredient_line_unit_is_modified(ingredient_line, expected_result):
+    actual = ingredients.parse_ingredient_line(ingredient_line)
+    expected = make_ingredient(expected_result)
+    assert_ingredient_equal(expected, actual)
+
+
 """
 Additional cases:
 equivalences:
@@ -355,10 +371,8 @@ unit size:
     2 16 oz cans of crushed tomatoes
     2 16oz cans of crushed tomatoes
     2 (16-oz) cans of crushed tomatoes
-    2 large bags of chocolate chips
-    1 heaping tablespoon of red pepper flakes
-    2 rounded Tbsp. cornstarch
     Scant 1/4 cup white candy coating, such as Wilton Candy Melts
     a scant 1/2 teaspoon crumbled dried sage
-    1 scant Tbsp. lemon juice
+    a couple dashes of cayenne pepper
+    a few dashes of cayenne pepper
 """

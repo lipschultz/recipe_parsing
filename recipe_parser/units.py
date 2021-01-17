@@ -13,7 +13,7 @@ class Unit:
         self.other_representations = other_representations
 
     def __str__(self):
-        return self.name
+        return self.name if self.name else ''
 
     def __repr__(self):
         attr_names = ('name', 'abbreviation', 'plural_name', 'plural_abbreviation', 'other_representations')
@@ -50,6 +50,20 @@ class Unit:
 
 
 NO_UNIT = Unit(None, None)
+
+
+pre_unit_modifiers_sml = [
+    'small', 'sm',
+    'medium', 'md', 'med',
+    'large', 'lg',
+]
+
+
+pre_unit_modifiers_volume = [
+    'heaping',
+    'rounded',
+    'scant',
+]
 
 
 _units_weights = [
@@ -105,17 +119,6 @@ _units_amounts = [
 ]
 
 _unit_modifier_pre_amount = ['scant']
-
-_unit_modifier_pre_unit = [
-    'medium', 'md', 'med',
-    'large', 'lg',
-    'small', 'sm',
-
-    'heaping',
-    'rounded',
-    'scant',
-]
-
 _unit_modifier_post_unit = [r'\+']
 
 

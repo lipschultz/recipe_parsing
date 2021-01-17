@@ -3,8 +3,8 @@ from typing import AnyStr, Optional
 import regex
 
 from recipe_parser.quantity import CompleteQuantity, NO_COMPLETE_QUANTITY, Quantity, to_number, TotalQuantity, \
-    QuantityRange
-from recipe_parser.units import american_units, UnitsRegistry
+    QuantityRange, QuantityUnit
+from recipe_parser import units as units_module
 
 
 class Ingredient:
@@ -118,11 +118,12 @@ class IngredientParser(BasicIngredientParser):
                  *,
                  approx_regex_pre_amount=r'(?:~|about|approx(?:\.|imately)?)',
                  amount_regex=r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+|a',
-                 units_registry: UnitsRegistry = american_units,
+                 units_registry: units_module.UnitsRegistry = units_module.american_units,
                  approx_regex_post_unit=r'(:?\(?\+/-\)?)',
                  plus_regex='|'.join([r'\+', 'and', 'plus', ',']),
                  dash_regex=r'(?:[-\u2012-\u2015\u2053~]|to)',
                  optional_regex=BasicIngredientParser.DEFAULT_OPTIONAL_REGEX,
+                 pre_unit_modifiers='|'.join(units_module.pre_unit_modifiers_sml + units_module.pre_unit_modifiers_volume),
                  ):
         super().__init__(optional_regex=optional_regex)
         self.approx_regex_pre_amount = approx_regex_pre_amount
@@ -131,6 +132,7 @@ class IngredientParser(BasicIngredientParser):
         self.approx_regex_post_unit = approx_regex_post_unit
         self.plus_regex = plus_regex
         self.dash_regex = dash_regex
+        self.pre_unit_modifiers = pre_unit_modifiers
 
     @property
     def units_regex(self):
@@ -138,7 +140,7 @@ class IngredientParser(BasicIngredientParser):
 
     @property
     def quantity_regex_raw_fmt(self):
-        return r'(?P<approxPreAmount{label}>{approx_regex_pre_amount})?\s*(?P<amount{label}>{amount_regex})?\s*(?P<unit{label}>{unit_regex})?\.?\s*(?P<approxPostUnit{label}>{approx_regex_post_unit})?'
+        return r'(?P<approxPreAmount{label}>{approx_regex_pre_amount})?\s*(?P<amount{label}>{amount_regex})?\s*(?P<pre_unit_mod{label}>{pre_unit_mod_regex})?\s*(?P<unit{label}>{unit_regex})?\.?\s*(?P<approxPostUnit{label}>{approx_regex_post_unit})?'
 
     @property
     def quantity_regex_fmt(self):
@@ -146,6 +148,7 @@ class IngredientParser(BasicIngredientParser):
             self.quantity_regex_raw_fmt,
             approx_regex_pre_amount=self.approx_regex_pre_amount,
             amount_regex=self.amount_regex,
+            pre_unit_mod_regex=self.pre_unit_modifiers,
             unit_regex=self.units_regex,
             approx_regex_post_unit=self.approx_regex_post_unit,
         )
@@ -154,14 +157,20 @@ class IngredientParser(BasicIngredientParser):
         return self.quantity_regex_fmt.format(label=label)
 
     def parse_quantity_match(self, res, label) -> Quantity:
-        unit = res.group(f'unit{label}')
+        unit_modification = res.group(f'pre_unit_mod{label}')
+        unit = self.units_registry[res.group(f'unit{label}')]
+        if unit is None:
+            unit = units_module.NO_UNIT
+        quantity_unit = QuantityUnit(unit, unit_modification)
+
         approximate = bool(res.group(f'approxPreAmount{label}')) or bool(res.group(f'approxPostUnit{label}'))
+
         amount = res.group(f'amount{label}')
         if isinstance(amount, str) and amount.lower() == 'a':
             # FIXME: This shouldn't be hard-coded -- maybe make a dictionary of regex -> value in __init__?
             amount = 1
 
-        return Quantity(to_number(amount), self.units_registry[unit], approximate)
+        return Quantity(to_number(amount), quantity_unit, approximate)
 
     @property
     def quantity_total_regex_raw_fmt(self):
@@ -175,6 +184,7 @@ class IngredientParser(BasicIngredientParser):
             self.quantity_total_regex_raw_fmt,
             approx_regex_pre_amount=self.approx_regex_pre_amount,
             amount_regex=self.amount_regex,
+            pre_unit_mod_regex=self.pre_unit_modifiers,
             unit_regex=self.units_regex,
             approx_regex_post_unit=self.approx_regex_post_unit,
             plus_regex=self.plus_regex,
@@ -204,6 +214,7 @@ class IngredientParser(BasicIngredientParser):
             self.quantity_range_regex_raw_fmt,
             approx_regex_pre_amount=self.approx_regex_pre_amount,
             amount_regex=self.amount_regex,
+            pre_unit_mod_regex=self.pre_unit_modifiers,
             unit_regex=self.units_regex,
             approx_regex_post_unit=self.approx_regex_post_unit,
             plus_regex=self.plus_regex,
@@ -241,6 +252,7 @@ class IngredientParser(BasicIngredientParser):
             self.regex_raw_fmt,
             approx_regex_pre_amount=self.approx_regex_pre_amount,
             amount_regex=self.amount_regex,
+            pre_unit_mod_regex=self.pre_unit_modifiers,
             unit_regex=self.units_regex,
             approx_regex_post_unit=self.approx_regex_post_unit,
             plus_regex=self.plus_regex,

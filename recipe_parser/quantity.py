@@ -86,7 +86,8 @@ class QuantityUnit:
         return isinstance(other, self.__class__) and self.unit == other.unit and self.modifier == other.modifier
 
     def __bool__(self):
-        return bool(self.unit)
+        # It's possible for modifier to be non-None while unit is None -- `2 large eggs` has no unit, but a modifier
+        return bool(self.unit) or bool(self.modifier)
 
     def __str__(self):
         value = ''
