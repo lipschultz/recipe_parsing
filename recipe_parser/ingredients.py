@@ -9,9 +9,9 @@ from recipe_parser import units as units_module
 
 class Ingredient:
     def __init__(self,
-                 name: AnyStr,
+                 name: str,
                  quantity: CompleteQuantity = NO_COMPLETE_QUANTITY,
-                 notes: Optional[AnyStr] = None,
+                 notes: Optional[str] = None,
                  optional: bool = False,
                  ):
         self.name = name
@@ -98,7 +98,7 @@ class BasicIngredientParser:
 
         if i_comma == -1:
             if i_paren == -1:
-                name, note = name, None
+                note = None
             else:
                 name, note = extract_paren(name, i_paren)
         elif i_paren == -1:
@@ -113,9 +113,9 @@ class BasicIngredientParser:
         return name, note
 
 
-fraction_regex = r'(?:[\u2150-\u215E\u00BC-\u00BE]|(?:\d+/\d+))'
-decimal_regex = r'\d*(?:[./]\d*)?'
-number_regex = fr'(?:{decimal_regex})?\s*(?:{fraction_regex})?'
+FRACTION_REGEX = r'(?:[\u2150-\u215E\u00BC-\u00BE]|(?:\d+/\d+))'
+DECIMAL_REGEX = r'\d*(?:[./]\d*)?'
+NUMBER_REGEX = fr'(?:{DECIMAL_REGEX})?\s*(?:{FRACTION_REGEX})?'
 
 
 class UnitSizeIngredientParser(BasicIngredientParser):
@@ -124,7 +124,7 @@ class UnitSizeIngredientParser(BasicIngredientParser):
                  unit_modifiers: Union[Iterable, str],
                  *,
                  approx_regex_pre_amount=r'(?:~|about|approx(?:\.|imately)?)',
-                 amount_regex=fr'{number_regex}|a',
+                 amount_regex=fr'{NUMBER_REGEX}|a',
                  approx_regex_post_unit=r'(:?\(?\+/-\)?)',
                  optional_regex=BasicIngredientParser.DEFAULT_OPTIONAL_REGEX,
                  ):
@@ -238,7 +238,8 @@ class IngredientParser(BasicIngredientParser):
                  plus_regex='|'.join([r'\+', 'and', 'plus', ',']),
                  dash_regex=r'(?:[-\u2012-\u2015\u2053~]|to)',
                  optional_regex=BasicIngredientParser.DEFAULT_OPTIONAL_REGEX,
-                 pre_unit_modifiers='|'.join(units_module.pre_unit_modifiers_sml + units_module.pre_unit_modifiers_volume),
+                 pre_unit_modifiers='|'.join(units_module.pre_unit_modifiers_sml +
+                                             units_module.pre_unit_modifiers_volume),
                  ):
         super().__init__(optional_regex=optional_regex)
         self.approx_regex_pre_amount = approx_regex_pre_amount
@@ -255,7 +256,11 @@ class IngredientParser(BasicIngredientParser):
 
     @property
     def quantity_regex_raw_fmt(self):
-        return r'(?P<approxPreAmount{label}>{approx_regex_pre_amount})?\s*(?P<amount{label}>{amount_regex})?\s*(?P<pre_unit_mod{label}>{pre_unit_mod_regex})?\s*(?P<unit{label}>{unit_regex})?\.?\s*(?P<approxPostUnit{label}>{approx_regex_post_unit})?'
+        return r'(?P<approxPreAmount{label}>{approx_regex_pre_amount})?\s*' \
+               r'(?P<amount{label}>{amount_regex})?\s*' \
+               r'(?P<pre_unit_mod{label}>{pre_unit_mod_regex})?\s*' \
+               r'(?P<unit{label}>{unit_regex})?\.?\s*' \
+               r'(?P<approxPostUnit{label}>{approx_regex_post_unit})?'
 
     @property
     def quantity_regex_fmt(self):
@@ -343,7 +348,7 @@ class IngredientParser(BasicIngredientParser):
         from_quantity = self.parse_quantity_total_match(res, f"{label}from")
         to_quantity = self.parse_quantity_total_match(res, f"{label}to")
 
-        if len(from_quantity) and not from_quantity[0].unit and len(to_quantity):
+        if len(from_quantity) != 0 and not from_quantity[0].unit and len(to_quantity) != 0:
             from_quantity[0].unit = to_quantity[0].unit
 
         quantity_range = QuantityRange(from_quantity, to_quantity)
@@ -407,7 +412,8 @@ class IngredientParser(BasicIngredientParser):
 DEFAULT_INGREDIENT_PARSERS = [
     UnitSizeIngredientParser(
         units=units_module.item_units,
-        unit_modifiers=fr"\(?{number_regex}(?:-|\s+)?(?:{'|'.join(units_module.weight_units.all_units_as_regex_strings())})\)?",
+        unit_modifiers=fr"\(?{NUMBER_REGEX}(?:-|\s+)?" \
+                       fr"(?:{'|'.join(units_module.weight_units.all_units_as_regex_strings())})\)?",
         amount_regex=r'\d+',
     ),
     IngredientParser(),
@@ -421,3 +427,4 @@ def parse_ingredient_line(ingredient_line, parsers=None) -> Optional[Ingredient]
         parsed_ingredient = parser(ingredient_line)
         if parsed_ingredient is not None:
             return parsed_ingredient
+    return None

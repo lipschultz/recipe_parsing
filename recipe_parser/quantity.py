@@ -1,5 +1,5 @@
 import unicodedata
-from typing import AnyStr, Optional, Union, Iterable
+from typing import Optional, Union, Iterable
 
 from recipe_parser.units import Unit, NO_UNIT
 
@@ -7,10 +7,10 @@ Number = Union[int, float]
 
 
 def to_number(value: str) -> Optional[Number]:
-    if isinstance(value, (int, float)):
+    if isinstance(value, (int, float)) or value is None:
         return value
     elif not isinstance(value, str):
-        return None
+        raise TypeError(f'Unsupported type for converting to number: {value!r} (type: {type(value)})')
 
     value = value.strip()
 
