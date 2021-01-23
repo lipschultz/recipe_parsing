@@ -350,6 +350,9 @@ class IngredientParser(BasicIngredientParser):
 
         if len(from_quantity) != 0 and not from_quantity[0].unit and len(to_quantity) != 0:
             from_quantity[0].unit = to_quantity[0].unit
+            if to_quantity[0].amount is None:
+                # This is probably a case of, e.g., "8-oz steak": "8" went to from_quantity and "oz" went to to_quantity
+                to_quantity = TotalQuantity()
 
         quantity_range = QuantityRange(from_quantity, to_quantity)
 

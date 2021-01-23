@@ -36,7 +36,11 @@ def test_converts_string_to_number(str_num, expected_num):
 def assert_unit_equal(expected, actual):
     assert isinstance(actual, units.Unit)
 
-    assert expected == actual
+    assert expected.name == actual.name
+    assert expected.abbreviation == actual.abbreviation
+    assert expected.plural_name == actual.plural_name
+    assert expected.plural_abbreviation == actual.plural_abbreviation
+    assert expected.other_representations == actual.other_representations
 
 
 def assert_quantity_unit_equal(expected, actual):
@@ -151,6 +155,7 @@ def make_ingredient(expected_info):
     ('2½teaspoons chili powder', ('chili powder', {'from': [(2.5, 'teaspoons')]})),
     ('2½ teaspoons of chili powder', ('chili powder', {'from': [(2.5, 'teaspoons')]})),
     ('2½ teaspoons Of chili powder', ('chili powder', {'from': [(2.5, 'teaspoons')]})),
+    ('8-oz steak', ('steak', {'from': [(8, 'oz')]})),
 
     # Amount unit name (with spaces in fraction)
     ('1 /2 teaspoons chili powder', ('chili powder', {'from': [(0.5, 'teaspoons')]})),
