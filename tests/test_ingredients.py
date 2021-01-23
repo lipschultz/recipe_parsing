@@ -357,6 +357,22 @@ def test_parses_ingredient_line_unit_is_modified(ingredient_line, expected_resul
     assert_ingredient_equal(expected, actual)
 
 
+@pytest.mark.parametrize("ingredient_line, expected_result", [
+    ('2 16-oz cans of crushed tomatoes', ('crushed tomatoes', {'from': [(2, 'cans', '16-oz')]})),
+    ('2 16oz cans of crushed tomatoes', ('crushed tomatoes', {'from': [(2, 'cans', '16oz')]})),
+    ('2 16 oz cans of crushed tomatoes', ('crushed tomatoes', {'from': [(2, 'cans', '16 oz')]})),
+    ('2 (16-oz) cans of crushed tomatoes', ('crushed tomatoes', {'from': [(2, 'cans', '(16-oz)')]})),
+    ('2 (16oz) cans of crushed tomatoes', ('crushed tomatoes', {'from': [(2, 'cans', '(16oz)')]})),
+    ('2 (16 oz) cans of crushed tomatoes', ('crushed tomatoes', {'from': [(2, 'cans', '(16 oz)')]})),
+    # ('16-oz can of crushed tomatoes', ('crushed tomatoes', {'from': [(16, 'oz')]})),
+    # ('a 16-oz can of crushed tomatoes', ('crushed tomatoes', {'from': [(1, 'can', '16-oz')]})),
+])
+def test_parses_ingredient_line_with_unit_size(ingredient_line, expected_result):
+    actual = ingredients.parse_ingredient_line(ingredient_line)
+    expected = make_ingredient(expected_result)
+    assert_ingredient_equal(expected, actual)
+
+
 """
 Additional cases:
 equivalences:
@@ -367,10 +383,6 @@ equivalences:
 notes/comments:
     1 cup lightly packed brown sugar
 unit size:
-    2 16-oz cans of crushed tomatoes
-    2 16 oz cans of crushed tomatoes
-    2 16oz cans of crushed tomatoes
-    2 (16-oz) cans of crushed tomatoes
     Scant 1/4 cup white candy coating, such as Wilton Candy Melts
     a scant 1/2 teaspoon crumbled dried sage
     a couple dashes of cayenne pepper

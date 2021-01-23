@@ -93,7 +93,7 @@ _units_length = [
     Unit('inch', 'in', 'inches'),
 ]
 
-_units_amounts = [
+_units_items = [
     Unit('bag', None, 'bags'),
     Unit('ball', None, 'balls'),
     Unit('block', None, 'blocks'),
@@ -122,7 +122,7 @@ _unit_modifier_pre_amount = ['scant']
 _unit_modifier_post_unit = [r'\+']
 
 
-_all_units = _units_weights + _units_volumes + _units_length + _units_amounts
+_all_units = _units_weights + _units_volumes + _units_length + _units_items
 
 
 class UnitsRegistry:
@@ -131,7 +131,7 @@ class UnitsRegistry:
         self._units_map = None
 
     def transform_for_regex(self, unit):
-        return unit.replace(' ', r'\s+').replace('.', r'\.')
+        return regex.escape(unit, literal_spaces=True).replace(' ', r'\s+')
 
     def normalize_for_lookup(self, unit):
         if not isinstance(unit, str):
@@ -175,4 +175,6 @@ class UnitsRegistry:
         return self._units_map.get(item, self._units_map.get(item.lower()))
 
 
+weight_units = UnitsRegistry(_units_weights)
+item_units = UnitsRegistry(_units_items)
 american_units = UnitsRegistry(_all_units)

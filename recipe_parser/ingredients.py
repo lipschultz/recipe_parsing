@@ -1,4 +1,4 @@
-from typing import AnyStr, Optional
+from typing import AnyStr, Optional, Iterable, Union
 
 import regex
 
@@ -56,7 +56,7 @@ class BasicIngredientParser:
     def __init__(self, *, optional_regex=DEFAULT_OPTIONAL_REGEX):
         self.optional_regex = optional_regex
 
-    def __call__(self, text: str) -> Ingredient:
+    def __call__(self, text: str) -> Optional[Ingredient]:
         deoptionalized_ingredient_line = self.deoptionalize_ingredient_line(text)
         optional = (text != deoptionalized_ingredient_line)
         text = deoptionalized_ingredient_line
@@ -111,6 +111,121 @@ class BasicIngredientParser:
         if note is not None and len(note) == 0:
             note = None
         return name, note
+
+
+fraction_regex = r'(?:[\u2150-\u215E\u00BC-\u00BE]|(?:\d+/\d+))'
+decimal_regex = r'\d*(?:[./]\d*)?'
+number_regex = fr'(?:{decimal_regex})?\s*(?:{fraction_regex})?'
+
+
+class UnitSizeIngredientParser(BasicIngredientParser):
+    def __init__(self,
+                 units: units_module.UnitsRegistry,
+                 unit_modifiers: Union[Iterable, str],
+                 *,
+                 approx_regex_pre_amount=r'(?:~|about|approx(?:\.|imately)?)',
+                 amount_regex=fr'{number_regex}|a',
+                 approx_regex_post_unit=r'(:?\(?\+/-\)?)',
+                 optional_regex=BasicIngredientParser.DEFAULT_OPTIONAL_REGEX,
+                 ):
+        super().__init__(optional_regex=optional_regex)
+        self.units = units
+        self.unit_modifiers = [unit_modifiers] if isinstance(unit_modifiers, str) else list(unit_modifiers)
+
+        self.approx_regex_pre_amount = approx_regex_pre_amount
+        self.amount_regex = amount_regex
+        self.approx_regex_post_unit = approx_regex_post_unit
+
+    @property
+    def units_regex(self):
+        return '|'.join(self.units.all_units_as_regex_strings())
+
+    @property
+    def unit_modifiers_regex(self):
+        return '|'.join(self.unit_modifiers)
+
+    @property
+    def quantity_regex_raw_fmt(self):
+        return r'(?P<approxPreAmount{label}>{approx_regex_pre_amount})?\s*' \
+               r'(?P<amount{label}>{amount_regex})?\s*' \
+               r'(?P<pre_unit_mod{label}>{unit_modifiers_regex})?\s*' \
+               r'(?P<unit{label}>{unit_regex})\.?\s*' \
+               r'(?P<approxPostUnit{label}>{approx_regex_post_unit})?'
+
+    @property
+    def quantity_regex_fmt(self):
+        return self.partial_format(
+            self.quantity_regex_raw_fmt,
+            approx_regex_pre_amount=self.approx_regex_pre_amount,
+            amount_regex=self.amount_regex,
+            unit_modifiers_regex=self.unit_modifiers_regex,
+            unit_regex=self.units_regex,
+            approx_regex_post_unit=self.approx_regex_post_unit,
+        )
+
+    def get_quantity_regex(self, label):
+        return self.quantity_regex_fmt.format(label=label)
+
+    def parse_quantity_match(self, res, label) -> CompleteQuantity:
+        unit_modification = res.group(f'pre_unit_mod{label}')
+        unit = self.units[res.group(f'unit{label}')]
+        if unit is None:
+            unit = units_module.NO_UNIT
+        quantity_unit = QuantityUnit(unit, unit_modification)
+
+        approximate = bool(res.group(f'approxPreAmount{label}')) or bool(res.group(f'approxPostUnit{label}'))
+
+        amount = res.group(f'amount{label}')
+        if isinstance(amount, str) and amount.lower() == 'a':
+            # FIXME: This shouldn't be hard-coded -- maybe make a dictionary of regex -> value in __init__?
+            amount = 1
+
+        return CompleteQuantity.to_complete_quantity(Quantity(to_number(amount), quantity_unit, approximate))
+
+    @property
+    def regex_raw_fmt(self):
+        return self.quantity_regex_raw_fmt + r'\s+(?P<name>.+)'
+
+    @property
+    def regex_fmt(self):
+        return self.partial_format(
+            self.regex_raw_fmt,
+            approx_regex_pre_amount=self.approx_regex_pre_amount,
+            amount_regex=self.amount_regex,
+            unit_modifiers_regex=self.unit_modifiers_regex,
+            unit_regex=self.units_regex,
+            approx_regex_post_unit=self.approx_regex_post_unit,
+        )
+
+    def get_regex(self, label=''):
+        regex_pattern = self.regex_fmt.format(label=label)
+        return regex_pattern
+
+    def parse_match(self, res, label=''):
+        quantity = self.parse_quantity_match(res, label=label)
+
+        name = res.group('name')
+        if name.lower().startswith('of'):
+            name = name[2:].lstrip()
+
+        name, note = self.extract_note_from_name(name)
+
+        return quantity, name, note
+
+    def parse(self, text):
+        deoptionalized_ingredient_line = self.deoptionalize_ingredient_line(text)
+        optional = (text != deoptionalized_ingredient_line)
+        text = deoptionalized_ingredient_line
+
+        res = regex.fullmatch(fr'\s*{self.get_regex()}\s*', text, flags=regex.IGNORECASE)
+        if res:
+            quantity, name, note = self.parse_match(res)
+            return Ingredient(name, quantity, note, optional)
+        else:
+            return None
+
+    def __call__(self, text):
+        return self.parse(text)
 
 
 class IngredientParser(BasicIngredientParser):
@@ -289,7 +404,15 @@ class IngredientParser(BasicIngredientParser):
         return self.parse(text)
 
 
-DEFAULT_INGREDIENT_PARSERS = [IngredientParser(), BasicIngredientParser()]
+DEFAULT_INGREDIENT_PARSERS = [
+    UnitSizeIngredientParser(
+        units=units_module.item_units,
+        unit_modifiers=fr"\(?{number_regex}(?:-|\s+)?(?:{'|'.join(units_module.weight_units.all_units_as_regex_strings())})\)?",
+        amount_regex=r'\d+',
+    ),
+    IngredientParser(),
+    BasicIngredientParser()
+]
 
 
 def parse_ingredient_line(ingredient_line, parsers=None) -> Optional[Ingredient]:

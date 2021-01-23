@@ -136,6 +136,17 @@ class TotalQuantity:
     def __init__(self, quantities: Iterable[Quantity] = tuple()):
         self.quantities = [q for q in quantities if not q.is_empty()]
 
+    @classmethod
+    def to_total_quantity(cls, value):
+        if isinstance(value, TotalQuantity):
+            return value
+        elif isinstance(value, Quantity):
+            return TotalQuantity([value])
+        elif isinstance(value, Iterable) and not isinstance(value, str) and isinstance(value[0], Quantity):
+            return TotalQuantity(value)
+        else:
+            raise TypeError(f'Cannot convert to TotalQuantity, unrecognized type ({type(value)}: {value!r}')
+
     def __bool__(self):
         return any(bool(q) for q in self.quantities)
 
@@ -173,6 +184,15 @@ class QuantityRange:
     def __eq__(self, other):
         return self.equals(other)
 
+    @classmethod
+    def to_quantity_range(cls, value):
+        if isinstance(value, QuantityRange):
+            return value
+        elif isinstance(value, TotalQuantity):
+            return QuantityRange(value)
+        else:
+            return QuantityRange(TotalQuantity.to_total_quantity(value))
+
     def __str__(self):
         value = str(self.from_quantity)
 
@@ -199,6 +219,15 @@ class CompleteQuantity:
 
     def __eq__(self, other):
         return self.equals(other, True)
+
+    @classmethod
+    def to_complete_quantity(cls, value):
+        if isinstance(value, CompleteQuantity):
+            return value
+        elif isinstance(value, QuantityRange):
+            return cls(value)
+        else:
+            return cls(QuantityRange.to_quantity_range(value))
 
     def __str__(self):
         value = str(self.primary_quantity)
