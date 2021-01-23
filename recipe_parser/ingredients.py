@@ -113,8 +113,8 @@ class BasicIngredientParser:
         return name, note
 
 
-FRACTION_REGEX = r'(?:[\u2150-\u215E\u00BC-\u00BE]|(?:\d+/\d+))'
-DECIMAL_REGEX = r'\d*(?:[./]\d*)?'
+FRACTION_REGEX = r'(?:[\u2150-\u215E\u00BC-\u00BE]|(?:\d+\s*/\s*\d+))'
+DECIMAL_REGEX = r'\d*(?:\.\d*)?'
 NUMBER_REGEX = fr'(?:{DECIMAL_REGEX})?\s*(?:{FRACTION_REGEX})?'
 
 
@@ -415,9 +415,9 @@ class IngredientParser(BasicIngredientParser):
 DEFAULT_INGREDIENT_PARSERS = [
     UnitSizeIngredientParser(
         units=units_module.item_units,
-        unit_modifiers=fr"\(?{NUMBER_REGEX}(?:-|\s+)?" \
+        unit_modifiers=fr"\(?{NUMBER_REGEX}"
+                       r"(?:-|\s+)?"
                        fr"(?:{'|'.join(units_module.weight_units.all_units_as_regex_strings())})\)?",
-        amount_regex=r'\d+',
     ),
     IngredientParser(),
     BasicIngredientParser()

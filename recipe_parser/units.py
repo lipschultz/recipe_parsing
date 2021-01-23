@@ -104,6 +104,7 @@ _units_items = [
     Unit('cookie', None, 'cookies'),
     Unit('drop', None, 'drops'),
     Unit('dollop', None, 'dollops'),
+    Unit('handful', None, 'handfuls'),
     Unit('head', None, 'heads'),
     Unit('loaf', None, 'loaves'),
     Unit('pack', None, 'packs'),

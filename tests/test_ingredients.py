@@ -370,7 +370,7 @@ def test_parses_ingredient_line_unit_is_modified(ingredient_line, expected_resul
     ('2 (16oz) cans of crushed tomatoes', ('crushed tomatoes', {'from': [(2, 'cans', '(16oz)')]})),
     ('2 (16 oz) cans of crushed tomatoes', ('crushed tomatoes', {'from': [(2, 'cans', '(16 oz)')]})),
     # ('16-oz can of crushed tomatoes', ('crushed tomatoes', {'from': [(16, 'oz')]})),
-    # ('a 16-oz can of crushed tomatoes', ('crushed tomatoes', {'from': [(1, 'can', '16-oz')]})),
+    ('a 16-oz can of crushed tomatoes', ('crushed tomatoes', {'from': [(1, 'can', '16-oz')]})),
 ])
 def test_parses_ingredient_line_with_unit_size(ingredient_line, expected_result):
     actual = ingredients.parse_ingredient_line(ingredient_line)
