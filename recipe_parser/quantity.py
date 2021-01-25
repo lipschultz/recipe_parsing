@@ -179,7 +179,9 @@ class QuantityRange:
         self.to_quantity = to_quantity
 
     def equals(self, other):
-        return isinstance(other, self.__class__) and self.from_quantity == other.from_quantity and self.to_quantity == other.to_quantity
+        return isinstance(other, self.__class__) and \
+               self.from_quantity == other.from_quantity and \
+               self.to_quantity == other.to_quantity
 
     def __eq__(self, other):
         return self.equals(other)
@@ -208,7 +210,10 @@ NO_QUANTITY_RANGE = QuantityRange()
 
 
 class CompleteQuantity:
-    def __init__(self, primary_quantity: QuantityRange = NO_QUANTITY_RANGE, equivalent_quantities: Iterable[QuantityRange] = ()):
+    def __init__(self,
+                 primary_quantity: QuantityRange = NO_QUANTITY_RANGE,
+                 equivalent_quantities: Iterable[QuantityRange] = ()
+                 ):
         self.primary_quantity = primary_quantity
         self.equivalent_quantities = list(equivalent_quantities)
 
@@ -238,7 +243,9 @@ class CompleteQuantity:
         return value
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(primary_quantity={self.primary_quantity!r}, equivalent_quantities={self.equivalent_quantities!r})'
+        attrs = ('primary_quantity', 'equivalent_quantities')
+        str_attrs = ', '.join(f'{attr}={getattr(self, attr)!r}' for attr in attrs)
+        return f'{self.__class__.__name__}({str_attrs})'
 
 
 NO_COMPLETE_QUANTITY = CompleteQuantity()

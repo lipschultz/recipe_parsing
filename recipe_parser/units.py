@@ -160,7 +160,7 @@ class UnitsRegistry:
                 existing_units = {u: (new, existing) for u, (new, existing) in existing_units.items() if
                                   existing is not None}
                 if existing_units:
-                    print(f'Warning: Some units already exist:')
+                    print('Warning: Some units already exist:')
                     print('\n'.join(f'\t{u}:\n\t\tnew: {new!r}\n\t\texisting: {existing!r}' for u, (new, existing) in
                                     existing_units.items()))
                     for u in existing_units:

@@ -1,4 +1,4 @@
-from typing import AnyStr, Optional, Iterable, Union
+from typing import Optional, Iterable, Union
 
 import regex
 
