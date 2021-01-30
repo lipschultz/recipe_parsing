@@ -147,7 +147,7 @@ class UnitSizeIngredientParser(BasicIngredientParser):
     @property
     def quantity_regex_raw_fmt(self):
         return r'(?P<approxPreAmount{label}>{approx_regex_pre_amount})?\s*' \
-               r'(?P<amount{label}>{amount_regex})?\s*' \
+               r'(?P<amount{label}>{amount_regex})??\s*' \
                r'(?P<pre_unit_mod{label}>{unit_modifiers_regex})?\s*' \
                r'(?P<unit{label}>{unit_regex})\.?\s*' \
                r'(?P<approxPostUnit{label}>{approx_regex_post_unit})?'
