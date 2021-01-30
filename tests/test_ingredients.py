@@ -378,6 +378,27 @@ def test_parses_ingredient_line_with_unit_size(ingredient_line, expected_result)
     assert_ingredient_equal(expected, actual)
 
 
+@pytest.mark.parametrize("ingredient_line, expected_result", [
+    # Amount unit name
+    ('chili powder 2 tbsp', ('chili powder', {'from': [(2, 'tbsp')]})),
+    ('chili powder - 2 tbsp', ('chili powder', {'from': [(2, 'tbsp')]})),
+
+    # Amount unit name (with spaces in fraction)
+    ('chili powder - 1 /2 teaspoons', ('chili powder', {'from': [(0.5, 'teaspoons')]})),
+
+    # Amount name
+    ('onions 2', ('onions', {'from': [(2, None)]})),
+    ('onions - 2', ('onions', {'from': [(2, None)]})),
+    ('onions ½', ('onions', {'from': [(0.5, None)]})),
+    ('onions - ½', ('onions', {'from': [(0.5, None)]})),
+    ('red onions 1/2', ('red onions', {'from': [(0.5, None)]})),
+    ('red onions - 1/2', ('red onions', {'from': [(0.5, None)]})),
+])
+def test_parses_ingredient_before_quantity(ingredient_line, expected_result):
+    actual = ingredients.parse_ingredient_line(ingredient_line)
+    expected = make_ingredient(expected_result)
+    assert_ingredient_equal(expected, actual)
+
 """
 Additional cases:
 equivalences:
@@ -392,4 +413,5 @@ unit size:
     a scant 1/2 teaspoon crumbled dried sage
     a couple dashes of cayenne pepper
     a few dashes of cayenne pepper
+divided
 """

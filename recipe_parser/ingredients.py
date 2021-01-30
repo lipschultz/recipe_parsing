@@ -233,6 +233,7 @@ class IngredientParser(BasicIngredientParser):
                  *,
                  approx_regex_pre_amount=r'(?:~|about|approx(?:\.|imately)?)',
                  amount_regex=r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+|a',
+                 amount_required=False,
                  units_registry: units_module.UnitsRegistry = units_module.american_units,
                  approx_regex_post_unit=r'(:?\(?\+/-\)?)',
                  plus_regex='|'.join([r'\+', 'and', 'plus', ',']),
@@ -244,6 +245,7 @@ class IngredientParser(BasicIngredientParser):
         super().__init__(optional_regex=optional_regex)
         self.approx_regex_pre_amount = approx_regex_pre_amount
         self.amount_regex = amount_regex
+        self.amount_required = amount_required
         self.units_registry = units_registry
         self.approx_regex_post_unit = approx_regex_post_unit
         self.plus_regex = plus_regex
@@ -257,7 +259,7 @@ class IngredientParser(BasicIngredientParser):
     @property
     def quantity_regex_raw_fmt(self):
         return r'(?P<approxPreAmount{label}>{approx_regex_pre_amount})?\s*' \
-               r'(?P<amount{label}>{amount_regex})?\s*' \
+               r'(?P<amount{label}>{amount_regex}){amount_required}\s*' \
                r'(?P<pre_unit_mod{label}>{pre_unit_mod_regex})?\s*' \
                r'(?P<unit{label}>{unit_regex})?\.?\s*' \
                r'(?P<approxPostUnit{label}>{approx_regex_post_unit})?'
@@ -268,6 +270,7 @@ class IngredientParser(BasicIngredientParser):
             self.quantity_regex_raw_fmt,
             approx_regex_pre_amount=self.approx_regex_pre_amount,
             amount_regex=self.amount_regex,
+            amount_required=self.amount_required if isinstance(self.amount_required, str) else ('' if self.amount_required else '?'),
             pre_unit_mod_regex=self.pre_unit_modifiers,
             unit_regex=self.units_regex,
             approx_regex_post_unit=self.approx_regex_post_unit,
@@ -371,7 +374,7 @@ class IngredientParser(BasicIngredientParser):
     def parse_match(self, res, label=''):
         quantity = self.parse_quantity_range_match(res, label=label)
 
-        name = res.group('name')
+        name = res.group('name').strip()
         if name.lower().startswith('of'):
             name = name[2:].lstrip()
 
@@ -395,6 +398,39 @@ class IngredientParser(BasicIngredientParser):
         return self.parse(text)
 
 
+class IngredientBeforeQuantity(IngredientParser):
+    def __init__(self,
+                 *,
+                 approx_regex_pre_amount=r'(?:~|about|approx(?:\.|imately)?)',
+                 amount_regex=r'[0-9\u2150-\u215E\u00BC-\u00BE,./\s]+|a',
+                 amount_required=True,
+                 units_registry: units_module.UnitsRegistry = units_module.american_units,
+                 approx_regex_post_unit=r'(:?\(?\+/-\)?)',
+                 plus_regex='|'.join([r'\+', 'and', 'plus', ',']),
+                 dash_regex=r'(?:[-\u2012-\u2015\u2053~]|to)',
+                 optional_regex=BasicIngredientParser.DEFAULT_OPTIONAL_REGEX,
+                 pre_unit_modifiers='|'.join(units_module.pre_unit_modifiers_sml +
+                                             units_module.pre_unit_modifiers_volume),
+                 ingredient_quantity_separator_regex=r'[-\u2012-\u2015\u2053~]',
+                 ):
+        super().__init__(approx_regex_pre_amount=approx_regex_pre_amount, amount_regex=amount_regex,
+                         amount_required=amount_required, units_registry=units_registry,
+                         approx_regex_post_unit=approx_regex_post_unit, plus_regex=plus_regex, dash_regex=dash_regex,
+                         optional_regex=optional_regex, pre_unit_modifiers=pre_unit_modifiers)
+        self.ingredient_quantity_separator_regex = ingredient_quantity_separator_regex
+
+    @property
+    def regex_raw_fmt(self):
+        return r'(?P<name>.+?)\s*{ingredient_quantity_separator_regex}?\s*' + self.quantity_range_regex_fmt
+
+    @property
+    def regex_fmt(self):
+        return self.partial_format(
+            super().regex_fmt,
+            ingredient_quantity_separator_regex=self.ingredient_quantity_separator_regex,
+        )
+
+
 DEFAULT_INGREDIENT_PARSERS = [
     UnitSizeIngredientParser(
         units=units_module.item_units,
@@ -403,6 +439,7 @@ DEFAULT_INGREDIENT_PARSERS = [
                        fr"(?:{'|'.join(units_module.weight_units.all_units_as_regex_strings())})\)?",
     ),
     IngredientParser(),
+    IngredientBeforeQuantity(),
     BasicIngredientParser()
 ]
 
