@@ -294,20 +294,15 @@ class IngredientParser(BasicIngredientParser):
 
     @property
     def quantity_total_regex_raw_fmt(self):
-        return self.quantity_regex_raw_fmt + \
-               r'(?:\s*(?:{plus_regex})\s*(?P<subsequent{label}>' + \
-               self.partial_format(self.quantity_regex_raw_fmt, label="{label}_subsequent") + '))*'
+        return r'{quantity_regex}(?:\s*(?:{plus_regex})\s*(?P<subsequent{label}>{quantity_regex_subsequent}))*'
 
     @property
     def quantity_total_regex_fmt(self):
         return self.partial_format(
             self.quantity_total_regex_raw_fmt,
-            approx_regex_pre_amount=self.approx_regex_pre_amount,
-            amount_regex=self.amount_regex,
-            pre_unit_mod_regex=self.pre_unit_modifiers,
-            unit_regex=self.units_regex,
-            approx_regex_post_unit=self.approx_regex_post_unit,
+            quantity_regex=self.quantity_regex_fmt,
             plus_regex=self.plus_regex,
+            quantity_regex_subsequent=self.partial_format(self.quantity_regex_fmt, label="{label}_subsequent"),
         )
 
     def get_quantity_total_regex(self, label):
@@ -322,23 +317,17 @@ class IngredientParser(BasicIngredientParser):
 
     @property
     def quantity_range_regex_raw_fmt(self):
-        return self.partial_format(self.quantity_total_regex_raw_fmt, label="{label}from") + \
-               r'(?:\s*{dash_regex}\s*' + \
-               self.partial_format(self.quantity_total_regex_raw_fmt, label="{label}to") + \
-               r')?' + \
-               r'\s*(?:\(' + self.partial_format(self.quantity_total_regex_raw_fmt, label="{label}equivalent") + r'\))?'
+        return r'{quantity_total_from_regex}(?:\s*{dash_regex}\s*{quantity_total_to_regex})?' + \
+               r'\s*(?:\({quantity_total_equivalent_regex}\))?'
 
     @property
     def quantity_range_regex_fmt(self):
         return self.partial_format(
             self.quantity_range_regex_raw_fmt,
-            approx_regex_pre_amount=self.approx_regex_pre_amount,
-            amount_regex=self.amount_regex,
-            pre_unit_mod_regex=self.pre_unit_modifiers,
-            unit_regex=self.units_regex,
-            approx_regex_post_unit=self.approx_regex_post_unit,
-            plus_regex=self.plus_regex,
+            quantity_total_from_regex=self.partial_format(self.quantity_total_regex_fmt, label="{label}from"),
             dash_regex=self.dash_regex,
+            quantity_total_to_regex=self.partial_format(self.quantity_total_regex_fmt, label="{label}to"),
+            quantity_total_equivalent_regex=self.partial_format(self.quantity_total_regex_fmt, label="{label}equivalent"),
         )
 
     def get_quantity_range_regex(self, label=''):
@@ -367,19 +356,13 @@ class IngredientParser(BasicIngredientParser):
 
     @property
     def regex_raw_fmt(self):
-        return self.quantity_range_regex_raw_fmt + r'\s+(?P<name>.+)'
+        return r'{quantity_range_regex}\s+(?P<name>.+)'
 
     @property
     def regex_fmt(self):
         return self.partial_format(
             self.regex_raw_fmt,
-            approx_regex_pre_amount=self.approx_regex_pre_amount,
-            amount_regex=self.amount_regex,
-            pre_unit_mod_regex=self.pre_unit_modifiers,
-            unit_regex=self.units_regex,
-            approx_regex_post_unit=self.approx_regex_post_unit,
-            plus_regex=self.plus_regex,
-            dash_regex=self.dash_regex,
+            quantity_range_regex=self.quantity_range_regex_fmt,
         )
 
     def get_regex(self, label=''):
