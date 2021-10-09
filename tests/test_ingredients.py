@@ -110,6 +110,15 @@ def make_total_quantity(quantities):
 
 
 def make_ingredient(expected_info):
+    """
+    Convert a tuple of ingredient information into an Ingredient object.
+
+    Tuple values:
+        0: ingredient name (e.g. 'chili powder')
+        1: quantity in a dict, (e.g. {'from': [(2, 'tbsp')], 'to': [(3, 'tbsp')]} for '2-3 tbsp')
+        2: notes (can be omitted or use None to skip over it)
+        3: optional (can be omitted)
+    """
     expected_quantity = ingredients.CompleteQuantity(
         primary_quantity=ingredients.QuantityRange(
             from_quantity=make_total_quantity(expected_info[1].get('from', [])),
@@ -382,6 +391,10 @@ def test_parses_ingredient_line_with_unit_size(ingredient_line, expected_result)
     # Amount unit name
     ('chili powder 2 tbsp', ('chili powder', {'from': [(2, 'tbsp')]})),
     ('chili powder - 2 tbsp', ('chili powder', {'from': [(2, 'tbsp')]})),
+    ('chili powder- 2 tbsp', ('chili powder', {'from': [(2, 'tbsp')]})),
+    ('Chicken, large pieces with bones- 1 kg', ('Chicken', {'from': [(1, 'kg')]}, 'large pieces with bones')),
+    # ('steak 8-oz', ('steak', {'from': [(8, 'oz')]})),
+    # ('steak - 8-oz', ('steak', {'from': [(8, 'oz')]})),
 
     # Amount unit name (with spaces in fraction)
     ('chili powder - 1 /2 teaspoons', ('chili powder', {'from': [(0.5, 'teaspoons')]})),
