@@ -33,6 +33,23 @@ def test_converts_string_to_number(str_num, expected_num):
     assert ingredients.to_number(str_num) == expected_num
 
 
+@pytest.mark.parametrize("ingredient_line, expected", [
+    ('- Chicken, large pieces with bones- 1 kg', 'Chicken, large pieces with bones- 1 kg'),
+    ('* Chicken, large pieces with bones- 1 kg', 'Chicken, large pieces with bones- 1 kg'),
+
+    (' - Chicken, large pieces with bones- 1 kg', 'Chicken, large pieces with bones- 1 kg'),
+    ('-Chicken, large pieces with bones- 1 kg', 'Chicken, large pieces with bones- 1 kg'),
+
+    ('1 kg chicken', '1 kg chicken'),
+    ('- 1 kg chicken', '1 kg chicken'),
+    ('-1 kg chicken', '1 kg chicken'),
+    ('-1-2 kg chicken', '1-2 kg chicken'),
+])
+def test_replacing_bullet_points(ingredient_line, expected):
+    actual = ingredients.strip_bullet_points(ingredient_line)
+    assert expected == actual
+
+
 def assert_unit_equal(expected, actual):
     assert isinstance(actual, units.Unit)
 
@@ -393,6 +410,7 @@ def test_parses_ingredient_line_with_unit_size(ingredient_line, expected_result)
     ('chili powder - 2 tbsp', ('chili powder', {'from': [(2, 'tbsp')]})),
     ('chili powder- 2 tbsp', ('chili powder', {'from': [(2, 'tbsp')]})),
     ('Chicken, large pieces with bones- 1 kg', ('Chicken', {'from': [(1, 'kg')]}, 'large pieces with bones')),
+    ('- Chicken, large pieces with bones- 1 kg', ('Chicken', {'from': [(1, 'kg')]}, 'large pieces with bones')),
     # ('steak 8-oz', ('steak', {'from': [(8, 'oz')]})),
     # ('steak - 8-oz', ('steak', {'from': [(8, 'oz')]})),
 

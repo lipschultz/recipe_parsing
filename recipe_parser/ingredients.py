@@ -431,6 +431,38 @@ class IngredientBeforeQuantity(IngredientParser):
         )
 
 
+DEFAULT_BULLET_REGEXES = [
+    r'^(\s*[-*]\s*)',
+]
+
+
+def strip_bullet_points(ingredient_line, patterns: Union[bool, str, Iterable[str]] = True):
+    """
+    Remove a bullet point from the ingredient line.
+
+    Loop over patterns, using regex.sub to attempt to replace any matches
+    with an empty string.  Once a pattern changes the ingredient_line,
+    the new ingredient_line will be returned.
+
+    If `patterns` is True, then DEFAULT_BULLET_REGEXES will be used.  If
+    `patterns` is falsey, then this function will return the original
+    ingredient_line.
+    """
+    if not patterns:
+        return ingredient_line
+
+    if patterns is True:
+        patterns = DEFAULT_BULLET_REGEXES
+    elif isinstance(patterns, str):
+        patterns = [patterns]
+
+    for pattern in patterns:
+        result = regex.sub(pattern, '', ingredient_line)
+        if result != ingredient_line:
+            return result
+    return ingredient_line
+
+
 DEFAULT_INGREDIENT_PARSERS = [
     UnitSizeIngredientParser(
         units=units_module.item_units,
@@ -444,8 +476,10 @@ DEFAULT_INGREDIENT_PARSERS = [
 ]
 
 
-def parse_ingredient_line(ingredient_line, parsers=None) -> Optional[Ingredient]:
+def parse_ingredient_line(ingredient_line, parsers=None, strip_bullets=True) -> Optional[Ingredient]:
     parsers = parsers or DEFAULT_INGREDIENT_PARSERS
+
+    ingredient_line = strip_bullet_points(ingredient_line, strip_bullets)
     for parser in parsers:
         parsed_ingredient = parser(ingredient_line)
         if parsed_ingredient is not None:
