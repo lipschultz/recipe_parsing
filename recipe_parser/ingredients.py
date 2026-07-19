@@ -49,6 +49,19 @@ class Ingredient:
         attrib_list = ', '.join(f'{attrib}={getattr(self, attrib)!r}' for attrib in attribs)
         return f'{self.__class__.__name__}({attrib_list})'
 
+    def to_simple(self, for_equivalent_quantities=None, for_range=None, for_unit=None, for_modifier=None) -> dict:
+        return {
+            'name': self.name,
+            'quantity': self.quantity.to_simple(
+                for_equivalent_quantities=for_equivalent_quantities,
+                for_range=for_range,
+                for_unit=for_unit,
+                for_modifier=for_modifier
+            ),
+            'notes': self.notes,
+            'optional': self.optional,
+        }
+
 
 class BasicIngredientParser:
     DEFAULT_OPTIONAL_REGEX = r'\s*[,(]?\s*optional\s*\)?'
@@ -372,6 +385,8 @@ class IngredientParser(BasicIngredientParser):
         return self.regex_fmt.format(label=label)
 
     def parse_match(self, res, label=''):
+        if isinstance(self, IngredientBeforeQuantity):
+            print('Groups:', res.groups())
         quantity = self.parse_quantity_range_match(res, label=label)
 
         name = res.group('name').strip()
@@ -388,6 +403,9 @@ class IngredientParser(BasicIngredientParser):
         text = deoptionalized_ingredient_line
 
         res = regex.fullmatch(fr'\s*{self.get_regex()}\s*', text, flags=regex.IGNORECASE)
+        if isinstance(self, IngredientBeforeQuantity):
+            if not res:
+                print(self.get_regex())
         if res:
             quantity, name, note = self.parse_match(res)
             return Ingredient(name, quantity, note, optional)

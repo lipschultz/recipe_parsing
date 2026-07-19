@@ -99,6 +99,38 @@ class QuantityUnit:
     def __repr__(self):
         return f'{self.__class__.__name__}(unit={self.unit!r}, modifier={self.modifier!r})'
 
+    def to_simple(self, for_unit=None, for_modifier=None) -> dict:
+        """
+        `for_unit` indicates how to transform the unit.  Options are:
+            - `'name'` = Get the name of the unit
+            - `'abbreviation'` = Get the abbreviation for the unit
+            - `None` = Same as `'name'` (default)
+        `for_modifier` indicates how to handle the modifier if one exists.  Options are:
+            - `'separate'` = Store the modifier in a separate key ('modifier') in the dictionary returned
+            - `'with-unit'` = Store the modifier with the unit (e.g. 'scant tbsp')
+            - `'ignore'` = Ignore the modifier
+            - `None` = Same as `'with-unit'` (default)
+        """
+        representation = {}
+        for_unit = for_unit or 'name'
+        if for_unit == 'name':
+            representation['unit'] = self.unit.name
+        elif for_unit == 'abbreviation':
+            representation['unit'] = self.unit.abbreviation
+        else:
+            raise ValueError(f'Unrecognized value for for_unit: {for_unit!r}')
+
+        for_modifier = for_modifier or 'with-unit'
+        if self.modifier is not None:
+            if for_modifier == 'separate':
+                representation['modifier'] = self.modifier
+            elif for_modifier == 'with-unit':
+                representation['unit'] = self.modifier + ' ' + representation['unit']
+            elif for_modifier != 'ignore':
+                raise ValueError(f'Unrecognized value for for_modifier: {for_modifier!r}')
+
+        return representation
+
 
 NO_QUANTITY_UNIT = QuantityUnit(None)
 
@@ -130,6 +162,13 @@ class Quantity:
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.amount!r}, {self.unit!r}, approximate={self.approximate!r})'
+
+    def to_simple(self, for_unit=None, for_modifier=None) -> dict:
+        return {
+            'amount': self.amount,
+            **self.unit.to_simple(for_unit=for_unit, for_modifier=for_modifier),
+            'approximate': self.approximate,
+        }
 
 
 class TotalQuantity:
@@ -164,6 +203,12 @@ class TotalQuantity:
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.quantities!r})'
+
+    def to_simple(self, for_unit=None, for_modifier=None):
+        if len(self.quantities) > 1:
+            raise NotImplementedError('TotalQuantity currently only supports one quantity')
+
+        return self.quantities[0].to_simple(for_unit=for_unit, for_modifier=for_modifier)
 
 
 NO_QUANTITY = Quantity(None, None)
@@ -204,6 +249,33 @@ class QuantityRange:
 
     def __repr__(self):
         return f'{self.__class__.__name__}(from_quantity={self.from_quantity!r}, to_quantity={self.to_quantity!r})'
+
+    def to_simple(self, for_range=None, for_unit=None, for_modifier=None) -> dict:
+        """
+        `for_range` indicates how to handle both a `from_quantity` and `to_quantity`.  Options are:
+            - `'from'` = use just the `from_quantity`
+            - `'to'` = use just the `to_quantity`.  If `to_quantity` is empty, then use `from_quantity`
+            - `'range'` = return both the `from_quantity` and `to_quantity`
+            - `None` = same as `'from'` (default)
+        """
+        representation = {}
+        if for_range == 'from' or for_range is None:
+            representation['quantity'] = self.from_quantity.to_simple(for_unit=for_unit, for_modifier=for_modifier)
+        elif for_range == 'to':
+            if self.to_quantity == NO_TOTAL_QUANTITY or self.to_quantity is None:
+                representation['quantity'] = self.from_quantity.to_simple(for_unit=for_unit, for_modifier=for_modifier)
+            else:
+                representation['quantity'] = self.to_quantity.to_simple(for_unit=for_unit, for_modifier=for_modifier)
+        elif for_range == 'range':
+            representation['quantity'] = {
+                'from': self.from_quantity.to_simple(for_unit=for_unit, for_modifier=for_modifier),
+                'to': self.to_quantity.to_simple(for_unit=for_unit, for_modifier=for_modifier),
+            }
+        else:
+            raise ValueError(f'Unrecognized value for for_range: {for_range!r}')
+
+        return representation
+
 
 
 NO_QUANTITY_RANGE = QuantityRange()
@@ -246,6 +318,24 @@ class CompleteQuantity:
         attrs = ('primary_quantity', 'equivalent_quantities')
         str_attrs = ', '.join(f'{attr}={getattr(self, attr)!r}' for attr in attrs)
         return f'{self.__class__.__name__}({str_attrs})'
+
+    def to_simple(self, for_equivalent_quantities=None, for_range=None, for_unit=None, for_modifier=None) -> dict:
+        """
+        `for_equivalent_quantities` indicates how to handle any equivalent quantities.  Options are:
+            - `'ignore'` = ignore the equivalent quantities
+            - `'include'` = include the equivalent quantities as a list, pointed to by the key `'equivalent'`
+            - `None` = same as `'include'` (default)
+        """
+        representation = {
+            'primary': self.primary_quantity.to_simple(for_range=for_range, for_unit=for_unit, for_modifier=for_modifier)['quantity']
+        }
+
+        if for_equivalent_quantities == 'include' or for_equivalent_quantities is None:
+            representation['equivalent'] = [q.to_simple(for_range=for_range, for_unit=for_unit, for_modifier=for_modifier)['quantity'] for q in self.equivalent_quantities]
+        elif for_equivalent_quantities != 'ignore':
+            raise ValueError(f'Unrecognized value for for_equivalent_quantities: {for_equivalent_quantities!r}')
+
+        return representation
 
 
 NO_COMPLETE_QUANTITY = CompleteQuantity()
